@@ -1,6 +1,6 @@
 {
   "name": "live_islands",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Astro-style React and Vue component islands for Phoenix LiveView",
   "license": "MIT",
   "module": "./assets/js/live_islands/index.ts",
@@ -71,6 +71,7 @@
   },
   "scripts": {
     "benchmarks": "node benchmarks/run.mjs",
+    "benchmarks:smoke": "node benchmarks/run.mjs --samples=1",
     "e2e:test": "playwright test --config test/e2e/playwright.config.mjs",
     "format": "npx prettier --write ."
   }

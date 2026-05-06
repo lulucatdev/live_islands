@@ -29,10 +29,22 @@ const port = Number(args.get("port") || 4317);
 const baseURL = `http://127.0.0.1:${port}`;
 const skipBuild = args.get("skip-build") === "true";
 const keepServer = args.get("keep-server") === "true";
+const sampleCount = positiveIntegerArg("samples", 3);
+const skipFlow = args.get("skip-flow") === "true";
 const comparePath = args.get("compare");
 const budgetPath = args.get("budget") || defaultBudgetPath;
 const outPath = resolve(args.get("out") || join(resultsDir, "latest.json"));
 const markdownPath = outPath.replace(/\.json$/, ".md");
+
+function positiveIntegerArg(name, fallback) {
+  const raw = args.get(name);
+  if (raw === undefined) return fallback;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+
+  return Math.floor(parsed);
+}
 
 function run(command, commandArgs, options = {}) {
   console.log(`$ ${[command, ...commandArgs].join(" ")}`);
@@ -201,6 +213,14 @@ function summarizeResponses(responses) {
     totalBytes,
     uniqueBytes,
     duplicateBytes: totalBytes - uniqueBytes,
+    failedResponses: responses
+      .filter((response) => response.status >= 400)
+      .map((response) => ({
+        url: response.url.replace(baseURL, ""),
+        status: response.status,
+        resourceType: response.resourceType,
+        bytes: response.bytes,
+      })),
     groups,
     jsBytes: responses
       .filter(isScript)
@@ -230,12 +250,7 @@ function summarizeResponses(responses) {
   };
 }
 
-async function collectPage(browser, pathname, options = {}) {
-  const context = await browser.newContext({
-    ignoreHTTPSErrors: true,
-    serviceWorkers: "block",
-  });
-  const page = await context.newPage();
+function attachDiagnostics(page) {
   const responsePromises = [];
   const browserErrors = [];
 
@@ -278,6 +293,17 @@ async function collectPage(browser, pathname, options = {}) {
         .catch(() => null),
     );
   });
+
+  return { responsePromises, browserErrors };
+}
+
+async function collectPage(browser, pathname, options = {}) {
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const { responsePromises, browserErrors } = attachDiagnostics(page);
 
   const navigationStarted = Date.now();
   await page.goto(`${baseURL}${pathname}`, { waitUntil: "networkidle" });
@@ -383,6 +409,180 @@ async function collectPage(browser, pathname, options = {}) {
   };
 }
 
+async function collectScenario(browser, pathname, options = {}) {
+  const runs = [];
+
+  for (let index = 0; index < sampleCount; index += 1) {
+    const sample = await collectPage(browser, pathname, options);
+    sample.sampleIndex = index + 1;
+    runs.push(sample);
+  }
+
+  const representative = medianRun(runs, (sample) => sample.network.totalBytes);
+
+  return {
+    ...representative,
+    sampleCount: runs.length,
+    samples: runs,
+    stats: summarizePageSamples(runs),
+    browserErrors: runs.flatMap((sample) =>
+      sample.browserErrors.map((error) => ({
+        ...error,
+        sampleIndex: sample.sampleIndex,
+      })),
+    ),
+  };
+}
+
+async function collectRouteFlow(browser) {
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const { responsePromises, browserErrors } = attachDiagnostics(page);
+
+  await page.goto(`${baseURL}/capabilities`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() =>
+    window.__liveIslandsPrefetch
+      ?.manifest?.()
+      ?.some((island) => island.name === "Capabilities"),
+  );
+
+  const beforeManifest = await islandManifest(page);
+  await Promise.all(responsePromises);
+  const initialCount = responsePromises.length;
+
+  const startedAt = Date.now();
+  await page.getByRole("link", { name: "Benchmarks" }).click();
+  await page.waitForURL(`${baseURL}/benchmarks`);
+  await page.waitForFunction(() =>
+    window.__liveIslandsPrefetch
+      ?.manifest?.()
+      ?.some((island) => island.name === "BenchmarkWorkbench"),
+  );
+  await page.locator("#benchmark_workbench").waitFor({ state: "attached" });
+  await page.locator("#benchmark_vue_probe").waitFor({ state: "attached" });
+  await page
+    .locator("#benchmark_vue_probe")
+    .scrollIntoViewIfNeeded({ timeout: 10_000 });
+  await page.locator("[data-testid='benchmark-render-heavy']").waitFor();
+  await page.locator("[data-testid='benchmark-vue-probe']").waitFor();
+  await page.waitForLoadState("networkidle");
+  const navigationMs = Date.now() - startedAt;
+
+  const allResponses = (await Promise.all(responsePromises)).filter(Boolean);
+  const added = allResponses.slice(initialCount);
+  const afterManifest = await islandManifest(page);
+
+  await context.close();
+
+  return {
+    name: "capabilities-to-benchmarks",
+    from: "/capabilities",
+    to: "/benchmarks",
+    navigationMs,
+    network: summarizeResponses(added),
+    beforeManifest,
+    afterManifest,
+    browserErrors,
+    loadedHeavyLibraries: added
+      .map((response) => response.url)
+      .filter((url) => /pdf|katex/i.test(url))
+      .map((url) => url.replace(baseURL, "")),
+  };
+}
+
+async function islandManifest(page) {
+  const manifest = await page.evaluate(
+    () => window.__liveIslandsPrefetch?.manifest?.() || [],
+  );
+
+  return manifest.map((island) => ({
+    page: island.page,
+    framework: island.framework,
+    name: island.name,
+    client: island.client,
+    prefetch: island.prefetch,
+    ssr: island.ssr,
+    serverOnly: island.serverOnly,
+  }));
+}
+
+function medianRun(samples, metric) {
+  return [...samples].sort((left, right) => {
+    const metricDelta = metric(left) - metric(right);
+    if (metricDelta !== 0) return metricDelta;
+    return left.navigationMs - right.navigationMs;
+  })[Math.floor((samples.length - 1) / 2)];
+}
+
+function summarizePageSamples(samples) {
+  const interactionSamples = samples
+    .map((sample) => sample.interaction)
+    .filter(Boolean);
+
+  return {
+    navigationMs: numericStats(samples.map((sample) => sample.navigationMs)),
+    network: {
+      totalBytes: numericStats(
+        samples.map((sample) => sample.network.totalBytes),
+      ),
+      uniqueBytes: numericStats(
+        samples.map((sample) => sample.network.uniqueBytes),
+      ),
+      duplicateBytes: numericStats(
+        samples.map((sample) => sample.network.duplicateBytes),
+      ),
+      jsBytes: numericStats(samples.map((sample) => sample.network.jsBytes)),
+      cssBytes: numericStats(samples.map((sample) => sample.network.cssBytes)),
+    },
+    performance: {
+      domContentLoaded: numericStats(
+        samples.map((sample) => sample.performance?.domContentLoaded),
+      ),
+      load: numericStats(samples.map((sample) => sample.performance?.load)),
+      encodedBodySize: numericStats(
+        samples.map((sample) => sample.performance?.encodedBodySize),
+      ),
+      decodedBodySize: numericStats(
+        samples.map((sample) => sample.performance?.decodedBodySize),
+      ),
+    },
+    interaction:
+      interactionSamples.length > 0
+        ? {
+            totalBytes: numericStats(
+              interactionSamples.map((sample) => sample.network.totalBytes),
+            ),
+            jsBytes: numericStats(
+              interactionSamples.map((sample) => sample.network.jsBytes),
+            ),
+            duration: numericStats(
+              interactionSamples.map((sample) => sample.measure?.duration),
+            ),
+          }
+        : null,
+  };
+}
+
+function numericStats(values) {
+  const numbers = values
+    .filter((value) => typeof value === "number" && Number.isFinite(value))
+    .sort((left, right) => left - right);
+
+  if (numbers.length === 0) return null;
+
+  const sum = numbers.reduce((total, value) => total + value, 0);
+
+  return {
+    min: numbers[0],
+    median: numbers[Math.floor((numbers.length - 1) / 2)],
+    max: numbers[numbers.length - 1],
+    mean: Math.round(sum / numbers.length),
+  };
+}
+
 function readGitRevision() {
   try {
     return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
@@ -397,6 +597,7 @@ function readGitRevision() {
 function assertBenchmarks(result) {
   const failures = [];
   const benchmarkPage = result.pages.benchmarks;
+  const routeFlow = result.flows?.capabilitiesToBenchmarks;
 
   if (!benchmarkPage.ssr.containsServerReport) {
     failures.push("server-only SSR report was missing from initial HTML");
@@ -424,12 +625,45 @@ function assertBenchmarks(result) {
   if (!benchmarkPage.interaction?.loadedHeavyLibraries.length) {
     failures.push("heavy interaction did not load PDF.js or KaTeX chunks");
   }
+  if (benchmarkPage.network.failedResponses.length > 0) {
+    failures.push(
+      `benchmark page loaded failed responses: ${benchmarkPage.network.failedResponses
+        .map((response) => `${response.status} ${response.url}`)
+        .join("; ")}`,
+    );
+  }
   if (benchmarkPage.browserErrors.length > 0) {
     failures.push(
       `benchmark page emitted browser errors: ${benchmarkPage.browserErrors
         .map((error) => error.text)
         .join("; ")}`,
     );
+  }
+  if (routeFlow) {
+    if (
+      routeFlow.afterManifest.some(
+        (island) => island.name === "Capabilities" || island.name === "Counter",
+      )
+    ) {
+      failures.push("route flow kept islands from the previous page manifest");
+    }
+    if (routeFlow.loadedHeavyLibraries.length > 0) {
+      failures.push("route flow loaded PDF.js or KaTeX before user intent");
+    }
+    if (routeFlow.network.failedResponses.length > 0) {
+      failures.push(
+        `route flow loaded failed responses: ${routeFlow.network.failedResponses
+          .map((response) => `${response.status} ${response.url}`)
+          .join("; ")}`,
+      );
+    }
+    if (routeFlow.browserErrors.length > 0) {
+      failures.push(
+        `route flow emitted browser errors: ${routeFlow.browserErrors
+          .map((error) => error.text)
+          .join("; ")}`,
+      );
+    }
   }
 
   return failures;
@@ -475,6 +709,24 @@ function compare(previous, current) {
       current.artifacts.totals.gzipBytes,
     ],
   ];
+
+  if (
+    previous.flows?.capabilitiesToBenchmarks &&
+    current.flows?.capabilitiesToBenchmarks
+  ) {
+    fields.push(
+      [
+        "capabilities-to-benchmarks total",
+        previous.flows.capabilitiesToBenchmarks.network.totalBytes,
+        current.flows.capabilitiesToBenchmarks.network.totalBytes,
+      ],
+      [
+        "capabilities-to-benchmarks JS",
+        previous.flows.capabilitiesToBenchmarks.network.jsBytes,
+        current.flows.capabilitiesToBenchmarks.network.jsBytes,
+      ],
+    );
+  }
 
   return fields.map(([name, before, after]) => ({
     name,
@@ -533,6 +785,21 @@ function budgetFailures(result, budget) {
     ],
   ];
 
+  if (result.flows?.capabilitiesToBenchmarks) {
+    checks.push(
+      [
+        "capabilities-to-benchmarks total bytes",
+        result.flows.capabilitiesToBenchmarks.network.totalBytes,
+        budget.flows?.capabilitiesToBenchmarks?.maxTotalBytes,
+      ],
+      [
+        "capabilities-to-benchmarks JS bytes",
+        result.flows.capabilitiesToBenchmarks.network.jsBytes,
+        budget.flows?.capabilitiesToBenchmarks?.maxJsBytes,
+      ],
+    );
+  }
+
   return checks
     .filter(([_name, actual, max]) => typeof max === "number" && actual > max)
     .map(([name, actual, max]) => `${name} ${actual} exceeded budget ${max}`);
@@ -574,6 +841,7 @@ function markdown(result) {
     `- Commit: \`${result.commit || "unknown"}\``,
     `- Created: ${result.createdAt}`,
     `- Base URL: ${result.baseURL}`,
+    `- Samples per page: ${result.sampleCount}`,
     "",
     "## Summary",
     "",
@@ -589,6 +857,12 @@ function markdown(result) {
     `- Heavy non-SSR workbench absent from initial HTML: ${!result.pages.benchmarks.ssr.containsWorkbenchButton}`,
     `- Server-only report has no hook: ${!result.pages.benchmarks.ssr.serverReportHasHook}`,
     `- Browser errors: ${result.pages.benchmarks.browserErrors.length}`,
+    "",
+    "## Sample Stability",
+    "",
+    "| Metric | Min | Median | Max | Mean |",
+    "| --- | ---: | ---: | ---: | ---: |",
+    ...sampleStatsRows(result),
     "",
     "## Largest Benchmark Initial Requests",
     "",
@@ -611,6 +885,7 @@ function markdown(result) {
           response.bytes,
         )} |`,
     ),
+    ...routeFlowMarkdown(result),
     "",
     "## Page Manifest",
     "",
@@ -618,6 +893,62 @@ function markdown(result) {
     JSON.stringify(result.pages.benchmarks.manifest, null, 2),
     "```",
   ].join("\n");
+}
+
+function sampleStatsRows(result) {
+  const rows = [
+    ["Home navigation", result.pages.home.stats.navigationMs, "ms"],
+    ["Home total bytes", result.pages.home.stats.network.totalBytes, "bytes"],
+    ["Benchmark navigation", result.pages.benchmarks.stats.navigationMs, "ms"],
+    [
+      "Benchmark total bytes",
+      result.pages.benchmarks.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "Heavy interaction duration",
+      result.pages.benchmarks.stats.interaction?.duration,
+      "ms",
+    ],
+  ];
+
+  return rows
+    .filter(([_name, stats]) => stats)
+    .map(
+      ([name, stats, unit]) =>
+        `| ${name} | ${formatStat(stats.min, unit)} | ${formatStat(
+          stats.median,
+          unit,
+        )} | ${formatStat(stats.max, unit)} | ${formatStat(stats.mean, unit)} |`,
+    );
+}
+
+function routeFlowMarkdown(result) {
+  const flow = result.flows?.capabilitiesToBenchmarks;
+  if (!flow) return [];
+
+  return [
+    "",
+    "## Route Navigation Flow",
+    "",
+    `- Flow: \`${flow.from}\` -> \`${flow.to}\``,
+    `- Navigation time: ${flow.navigationMs} ms`,
+    `- Network total: ${formatBytes(flow.network.totalBytes)}`,
+    `- Network JS: ${formatBytes(flow.network.jsBytes)}`,
+    `- Heavy libraries loaded before intent: ${flow.loadedHeavyLibraries.length}`,
+    "",
+    "| After Navigation Manifest | Framework | Client | Prefetch | Server Only |",
+    "| --- | --- | --- | --- | --- |",
+    ...flow.afterManifest.map(
+      (island) =>
+        `| ${island.name} | ${island.framework} | ${island.client} | ${island.prefetch} | ${island.serverOnly} |`,
+    ),
+  ];
+}
+
+function formatStat(value, unit) {
+  if (unit === "bytes") return formatBytes(value);
+  return `${value} ${unit}`;
 }
 
 function comparisonMarkdown(result) {
@@ -661,17 +992,23 @@ async function main() {
 
     try {
       const result = {
-        version: 1,
+        version: 2,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
+        sampleCount,
         artifacts: buildArtifacts(),
         pages: {
-          home: await collectPage(browser, "/"),
-          benchmarks: await collectPage(browser, "/benchmarks", {
+          home: await collectScenario(browser, "/"),
+          benchmarks: await collectScenario(browser, "/benchmarks", {
             heavyInteraction: true,
           }),
         },
+        flows: skipFlow
+          ? {}
+          : {
+              capabilitiesToBenchmarks: await collectRouteFlow(browser),
+            },
       };
 
       const failures = [

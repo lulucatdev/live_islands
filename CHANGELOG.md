@@ -5,6 +5,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.4.1
+
+Benchmark harness stability and route-flow measurement.
+
+- Added multi-sample benchmark runs with min/median/max/mean stability stats for page load, byte totals, and heavy interaction timing.
+- Added a `/capabilities` to `/benchmarks` LiveView navigation flow that verifies page-scoped manifests, lazy route chunks, and no premature PDF.js or KaTeX loading.
+- Added route-flow byte budgets, one-sample smoke benchmarks, failed-response diagnostics, and a versioned benchmark result schema.
+
 ## v0.4.0
 
 Production benchmarks and manifest-driven asset loading.

@@ -12,5 +12,11 @@
   },
   "artifacts": {
     "maxGzipBytes": 1900000
+  },
+  "flows": {
+    "capabilitiesToBenchmarks": {
+      "maxTotalBytes": 80000,
+      "maxJsBytes": 70000
+    }
   }
 }

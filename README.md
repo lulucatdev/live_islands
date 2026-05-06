@@ -97,7 +97,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, verifies SSR/server-only islands, measures initial route bytes, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, verifies SSR/server-only islands, measures initial route bytes, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`.
 
 ## Credits
 
