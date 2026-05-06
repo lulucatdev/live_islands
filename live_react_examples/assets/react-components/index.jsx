@@ -1,6 +1,7 @@
 // polyfill recommended by Vite https://vitejs.dev/config/build-options#build-modulepreload
 import "vite/modulepreload-polyfill";
 
+import { Capabilities } from "./capabilities";
 import { Context } from "./context";
 import { Counter } from "./counter";
 import { DelaySlider } from "./delay-slider";
@@ -17,6 +18,7 @@ import { Slot } from "./slot";
 import { Typescript } from "./typescript";
 
 export default {
+  Capabilities,
   Context,
   Counter,
   DelaySlider,

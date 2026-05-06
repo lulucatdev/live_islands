@@ -146,6 +146,16 @@ defmodule LiveReactExamples do
     }
   end
 
+  def demo(:capabilities) do
+    %{
+      raw_view_url: "#{@raw_url}#{@live_views}/capabilities.ex",
+      view_url: "#{@url}#{@live_views}/capabilities.ex",
+      view_language: "elixir",
+      raw_react_url: "#{@raw_url}#{@react}/capabilities.jsx",
+      react_url: "#{@url}#{@react}/capabilities.jsx"
+    }
+  end
+
   def demo(demo) do
     raise ArgumentError, "Unknown demo: #{inspect(demo)}"
   end

@@ -42,6 +42,8 @@ defmodule LiveReact.Test do
 
   @compile {:no_warn_undefined, Floki}
 
+  alias LiveReact.Patch
+
   @doc """
   Extracts React component information from a LiveView or HTML string.
 
@@ -89,6 +91,10 @@ defmodule LiveReact.Test do
 
       %{
         props: Jason.decode!(attr(react, "data-props")),
+        props_diff: decode_patch(attr(react, "data-props-diff")),
+        streams_diff: decode_patch(attr(react, "data-streams-diff")),
+        use_diff: attr(react, "data-use-diff") == "true",
+        handlers: decode_handlers(attr(react, "data-handlers")),
         component: attr(react, "data-name"),
         id: attr(react, "id"),
         slots: extract_base64_slots(attr(react, "data-slots")),
@@ -105,6 +111,17 @@ defmodule LiveReact.Test do
     |> Jason.decode!()
     |> Enum.map(fn {key, value} -> {key, Base.decode64!(value)} end)
     |> Enum.into(%{})
+  end
+
+  defp decode_patch(nil), do: []
+  defp decode_patch(value), do: Patch.deserialize(value)
+
+  defp decode_handlers(nil), do: %{}
+
+  defp decode_handlers(value) do
+    value
+    |> Jason.decode!()
+    |> Map.new(fn {event, ops} -> {event, Jason.decode!(ops)} end)
   end
 
   defp find_component!(components, opts) do

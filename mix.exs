@@ -8,6 +8,7 @@ defmodule LiveReact.MixProject do
     [
       app: :live_react,
       version: @version,
+      consolidate_protocols: Mix.env() != :test,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -42,6 +43,9 @@ defmodule LiveReact.MixProject do
       {:phoenix_html, ">= 3.3.1"},
       {:phoenix_live_view, ">= 0.18.0"},
       {:telemetry, "~> 0.4 or ~> 1.0"},
+      {:jsonpatch, "~> 2.3"},
+      {:ecto, "~> 3.0", optional: true},
+      {:phoenix_ecto, "~> 4.0", optional: true},
       {:credo, "~> 1.7", only: [:dev, :test]},
       {:ex_doc, "~> 0.19", only: :dev, runtime: false},
       {:git_ops, "~> 2.8.0", only: [:dev]}

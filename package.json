@@ -24,9 +24,11 @@
     "assets/js/live_react/*"
   ],
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "prettier": "^3.3.2"
   },
   "scripts": {
+    "e2e:test": "playwright test --config test/e2e/playwright.config.mjs",
     "format": "npx prettier --write ."
   }
 }

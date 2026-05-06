@@ -32,6 +32,7 @@ defmodule LiveReactExamplesWeb.Router do
     live "/slot", LiveSlot
     live "/link-demo", LiveLinkDemo
     live "/link-usage", LiveLinkUsage
+    live "/capabilities", LiveCapabilities
   end
 
   # Other scopes may use custom stacks.

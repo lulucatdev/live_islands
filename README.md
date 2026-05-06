@@ -11,14 +11,17 @@ React inside Phoenix LiveView.
 
 ## Features
 
-- ⚡ **End-To-End Reactivity** with LiveView
-- 🔋 **Server-Side Rendered** (SSR) React
-- 🦄 **Tailwind** Support
-- 💀 **Dead View** Support
-- 🐌 **Lazy-loading** React Components
-- 🦥 **Slot** Interoperability
-- 🔗 **Link Component** for LiveView Navigation
-- 🚀 **Amazing DX** with Vite
+- **End-To-End Reactivity** with LiveView
+- **Server-Side Rendered** (SSR) React
+- **Efficient Props Diffing** over the LiveView WebSocket
+- **Phoenix Streams** support with efficient patches
+- **Tailwind** support
+- **Dead View** support
+- **Lazy-loading** React components
+- **Slot** interoperability
+- **Link Component** for LiveView navigation
+- **React hooks** for LiveView events, event replies, navigation, connection state, forms, and uploads
+- **Vite** development workflow
 
 ## Resources
 
@@ -49,11 +52,6 @@ LiveReact builds on top of Phoenix LiveView to allow for easy client side state 
 
 see [Installation](/guides/installation.md)
 
-## Roadmap 🎯
-
-- [ ] `useLiveForm` - an utility to efforlessly use Ecto changesets & server-side validation, similar to HEEX
-- [ ] Add support for Phoenix streams as props
-
 ## Credits
 
 I was inspired by the following libraries:
@@ -61,4 +59,4 @@ I was inspired by the following libraries:
 - [LiveVue](https://github.com/Valian/live_vue)
 - [LiveSvelte](https://github.com/woutdp/live_svelte)
 
-I had a need for a similar library for React and so I created LiveReact 👍
+I had a need for a similar library for React, so I created LiveReact.

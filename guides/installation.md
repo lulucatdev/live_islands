@@ -58,7 +58,7 @@ defp html_helpers do
 end
 ```
 
-5. LiveReact comes with a handy mix task to setup all the required files. It won't alter any files you already have in your project, you need to adjust them on your own by looking at the [sources](https://github.com/mrdotb/live_react/tree/main/assets/copy). Additional instructions how to adjust `package.json` can be found at the end of this page.
+5. LiveReact includes an installer task for the required asset files and common Phoenix configuration. It preserves files that already exist in your project and applies conservative edits to `assets/js/app.js`, `config/config.exs`, `config/dev.exs`, and `config/prod.exs`.
 
 It will create:
 
@@ -71,11 +71,13 @@ It will create:
 
 ```bash
 mix deps.get
-mix live_react.setup
+mix live_react.install
 npm install --prefix assets
 ```
 
-7. Add the following to your `assets/js/app.js` file
+The older `mix live_react.setup` task remains available when you only want to copy the asset templates.
+
+7. Confirm that your `assets/js/app.js` file contains the LiveReact hooks
 
 ```javascript
 ...
@@ -198,13 +200,15 @@ function MyComponent() {
       <Link href="/external">Traditional Link</Link>
       <Link patch="/same-lv?param=value">Patch Current LiveView</Link>
       <Link navigate="/other-lv">Navigate to Other LiveView</Link>
-      <Link navigate="/replace" replace={true}>Replace History</Link>
+      <Link navigate="/replace" replace={true}>
+        Replace History
+      </Link>
     </div>
   );
 }
 ```
 
-14. (Optional) enable [stateful hot reload](https://twitter.com/jskalc/status/1788308446007132509) of phoenix LiveViews - it allows for stateful reload across the whole stack 🤯. Just adjust your `dev.exs` to look like this - add `notify` section and remove `live|components` from patterns.
+14. (Optional) enable [stateful hot reload](https://twitter.com/jskalc/status/1788308446007132509) of Phoenix LiveViews. Adjust your `dev.exs` to add the `notify` section and remove `live|components` from patterns.
 
 ```elixir
 # Watch static and templates for browser reloading.
@@ -223,7 +227,7 @@ config :my_app, MyAppWeb.Endpoint,
   ]
 ```
 
-Profit! 💸
+At this point the Phoenix application can render React components through LiveReact.
 
 ## Adjusting your own package.json
 

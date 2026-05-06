@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { getComponentTree } from "./utils";
+import { decodeCompactPatch } from "./compactPatch";
+import { applyPatch } from "./jsonPatch";
 
 function getAttributeJson(el, attributeName) {
   const data = el.getAttribute(attributeName);
@@ -24,6 +26,7 @@ function getChildren(hook) {
 function getProps(hook) {
   return {
     ...getAttributeJson(hook.el, "data-props"),
+    ...getHandlers(hook),
     pushEvent: hook.pushEvent.bind(hook),
     pushEventTo: hook.pushEventTo.bind(hook),
     handleEvent: hook.handleEvent.bind(hook),
@@ -33,13 +36,50 @@ function getProps(hook) {
   };
 }
 
+function getLiveContext(hook) {
+  return {
+    pushEvent: hook.pushEvent.bind(hook),
+    pushEventTo: hook.pushEventTo.bind(hook),
+    handleEvent: hook.handleEvent.bind(hook),
+    removeHandleEvent: hook.removeHandleEvent.bind(hook),
+    upload: hook.upload.bind(hook),
+    uploadTo: hook.uploadTo.bind(hook),
+    liveSocket: hook.liveSocket,
+    el: hook.el,
+  };
+}
+
+function getDiff(el, attributeName) {
+  return decodeCompactPatch(el.getAttribute(attributeName));
+}
+
+function getHandlers(hook) {
+  const handlers = getAttributeJson(hook.el, "data-handlers");
+  const result = {};
+
+  for (const handlerName in handlers) {
+    const reactName = `on${handlerName.charAt(0).toUpperCase()}${handlerName.slice(1)}`;
+    result[reactName] = (event) => {
+      const parsedOps = JSON.parse(handlers[handlerName]);
+      const replacedOps = parsedOps.map(([op, args, ...other]) => {
+        if (op === "push" && !args.value) args.value = event;
+        return [op, args, ...other];
+      });
+      hook.liveSocket.execJS(hook.el, JSON.stringify(replacedOps));
+    };
+  }
+
+  return result;
+}
+
 export function getHooks(components) {
   const ReactHook = {
     _render() {
       const tree = getComponentTree(
         this._Component,
-        getProps(this),
+        this._props,
         getChildren(this),
+        getLiveContext(this),
       );
       this._root.render(tree);
     },
@@ -50,14 +90,20 @@ export function getHooks(components) {
       }
 
       this._Component = components[componentName];
+      this._props = getProps(this);
+      this._props = applyPatch(
+        this._props,
+        getDiff(this.el, "data-streams-diff"),
+      );
 
       const isSSR = this.el.hasAttribute("data-ssr");
 
       if (isSSR) {
         const tree = getComponentTree(
           this._Component,
-          getProps(this),
+          this._props,
           getChildren(this),
+          getLiveContext(this),
         );
         this._root = ReactDOM.hydrateRoot(this.el, tree);
       } else {
@@ -67,8 +113,29 @@ export function getHooks(components) {
     },
     updated() {
       if (this._root) {
+        if (this.el.getAttribute("data-use-diff") === "true") {
+          this._props = applyPatch(
+            this._props,
+            getDiff(this.el, "data-props-diff"),
+          );
+          Object.assign(this._props, getHandlers(this));
+        } else {
+          this._props = getProps(this);
+        }
+        this._props = applyPatch(
+          this._props,
+          getDiff(this.el, "data-streams-diff"),
+        );
         this._render();
       }
+    },
+    reconnected() {
+      this._props = getProps(this);
+      this._props = applyPatch(
+        this._props,
+        getDiff(this.el, "data-streams-diff"),
+      );
+      if (this._root) this._render();
     },
     destroyed() {
       if (this._root) {
