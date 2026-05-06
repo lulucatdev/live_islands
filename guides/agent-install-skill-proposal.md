@@ -55,7 +55,7 @@ Place the skill in `skills/live-islands-install/`.
 `references/verification.md` should be the install completion rubric:
 
 - Run the static verifier.
-- Run asset dependency install and Vite builds.
+- Run `mix live_islands.verify_install --full` to execute the Vite client build, SSR bundle build, and artifact checks.
 - Run Elixir compile/tests.
 - Render one React island and one Vue island in a real Phoenix page.
 - Confirm both islands mount in a browser and can handle a small interaction.
@@ -86,10 +86,12 @@ Only remove daisyUI when the user explicitly asks for a non-daisyUI default or w
 The verifier should check static project shape first:
 
 - `mix.exs` contains `:live_islands`.
-- `assets/package.json` contains LiveIslands, Vite, React, React DOM, Vue, and required Vite plugins.
-- `assets/vite.config.*` imports/configures React, Vue, and `live_islands/vite-plugin`.
+- `assets/package.json` contains LiveIslands, Vite, Tailwind, React, React DOM, Vue, and required Vite plugins.
+- `assets/vite.config.*` imports/configures Tailwind, React, Vue, and `live_islands/vite-plugin`.
+- `assets/css/app.css` imports Tailwind and scans React/Vue component roots.
 - `assets/js/app.js` imports `getIslandHooks`, React components, and Vue components, then passes the combined hooks to `LiveSocket`.
 - React and Vue component roots exist.
+- React and Vue registries use async imports so Vite can emit lazy island chunks.
 - `assets/js/server.js` can dispatch SSR for both React and Vue.
 - `lib/*_web.ex` imports `LiveIslands`.
 - The root layout loads Vite module assets and uses `LiveIslands.Reload.vite_assets` for dev.
@@ -101,14 +103,12 @@ After static checks, the install skill should run:
 
 ```bash
 rtk mix live_islands.verify_install
-rtk npm install --prefix assets
-rtk npm run build --prefix assets
-rtk npm run build-server --prefix assets
+rtk mix live_islands.verify_install --full
 rtk mix compile
 rtk mix test
 ```
 
-If SSR is intentionally disabled, replace `npm run build-server --prefix assets` with the project's explicit SSR-disabled check and report that choice.
+If SSR is intentionally disabled, run `rtk mix live_islands.verify_install --full --skip-ssr` and report that choice.
 
 Browser smoke should add or reuse a page with both frameworks:
 

@@ -15,17 +15,21 @@ LiveIslands requires these project-level integration points.
 - Ensure `assets/package.json` includes:
   - `live_islands`
   - `vite`
+  - `tailwindcss`
+  - `@tailwindcss/vite`
   - `@vitejs/plugin-react`
   - `@vitejs/plugin-vue`
   - `react`
   - `react-dom`
   - `vue`
-- Ensure `assets/vite.config.*` includes React, Vue, and `live_islands/vite-plugin`.
+- Ensure `assets/vite.config.*` includes Tailwind, React, Vue, and `live_islands/vite-plugin`.
 - If Phoenix colocated hooks are imported from `phoenix-colocated/<app>`, add a Vite alias to `_build/${MIX_ENV || "dev"}/phoenix-colocated`.
 - Ensure `assets/js/app.js` imports `getIslandHooks`, React components, and Vue components, then combines them with any existing hooks.
 - Prefer async React/Vue component registries so Vite can split page-specific island chunks.
 - Ensure `assets/js/server.js` can dispatch SSR to both React and Vue renderers.
 - Ensure `assets/react-components/index.{js,jsx,ts,tsx}` and `assets/vue-components/index.{js,ts}` exist.
+- Use async registries in both roots (`import()` or `import.meta.glob`) so Vite emits lazy chunks.
+- Ensure `assets/css/app.css` imports Tailwind and scans `../react-components` and `../vue-components`.
 - Ensure root layout loads Vite assets in development, usually with `LiveIslands.Reload.vite_assets`.
 
 ## Tailwind and daisyUI

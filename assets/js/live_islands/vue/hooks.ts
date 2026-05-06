@@ -12,6 +12,7 @@ import { getProps, getDiff, getElementId } from "./attrs.js";
 import { applyPatch } from "./jsonPatch.js";
 import { registerInjector, unregisterInjector, syncSlots } from "./inject.js";
 import { scheduleHydration } from "../hydration.js";
+import { describeIslandElement } from "../diagnostics.js";
 
 const shouldHydrate = (el: HTMLElement): boolean =>
   el.getAttribute("data-ssr") === "true" && el.hasChildNodes();
@@ -20,6 +21,11 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
   mounted() {
     const el = this.el as HTMLElement;
     const componentName = el.getAttribute("data-name");
+    if (!componentName) {
+      throw new Error(
+        `[LiveIslands][vue] Component name must be provided for ${describeIslandElement(el)}.`,
+      );
+    }
 
     const props = reactive(getProps(el, this.liveSocket));
     applyPatch(props, getDiff(el, "data-streams-diff"));
@@ -30,7 +36,7 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
     syncSlots(elementId);
 
     this.vue.cancelHydration = scheduleHydration(el, async () => {
-      const component = componentName ? await resolve(componentName) : null;
+      const component = await resolve(componentName);
 
       const targetId = el.getAttribute("data-inject");
       if (targetId && elementId && component) {

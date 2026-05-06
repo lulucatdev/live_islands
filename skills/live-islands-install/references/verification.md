@@ -6,17 +6,26 @@ Run the static verifier first:
 mix live_islands.verify_install
 ```
 
-Then run the project build checks:
+Then run the full frontend verifier. It runs the Vite client build, the SSR bundle build, and checks that Vite emitted JavaScript, CSS, and lazy island chunks:
 
 ```bash
-npm install --prefix assets
-npm run build --prefix assets
-npm run build-server --prefix assets
+mix live_islands.verify_install --full
+```
+
+If node modules are not installed yet, let the verifier install them first:
+
+```bash
+mix live_islands.verify_install --full --install
+```
+
+Then run the remaining project checks:
+
+```bash
 mix compile
 mix test
 ```
 
-If the project intentionally disables SSR, `npm run build-server --prefix assets` may be replaced by the project's chosen SSR-disabled check. Say that explicitly in the final report.
+If the project intentionally disables SSR, use `mix live_islands.verify_install --full --skip-ssr` and say that explicitly in the final report.
 
 For a browser smoke test, render one React island and one Vue island in a page or LiveView:
 

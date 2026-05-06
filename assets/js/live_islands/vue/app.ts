@@ -1,12 +1,16 @@
 import { type App, type Component, h } from "vue";
 import type {
-  ComponentOrComponentModule,
   ComponentOrComponentPromise,
   SetupContext,
   VueIslandOptions,
   ComponentMap,
   VueIslandApp,
 } from "./types.js";
+import {
+  availableComponentNames,
+  componentLoadError,
+  componentNotFoundError,
+} from "../diagnostics.js";
 
 /**
  * Initializes a Vue app with the given options and mounts it to the specified element.
@@ -46,12 +50,13 @@ export const normalizeVueIslandApp = (
         }
       },
       setup: options.initializeApp,
+      availableComponents: components,
     });
   }
 };
 
 const resolveComponent = async (
-  component: ComponentOrComponentModule,
+  component: ComponentOrComponentPromise,
 ): Promise<Component> => {
   if (typeof component === "function") {
     // it's an async component, let's try to load it
@@ -70,13 +75,37 @@ const resolveComponent = async (
   return component;
 };
 
-export const createVueIsland = ({ resolve, setup }: VueIslandOptions) => {
+export const createVueIsland = ({
+  resolve,
+  setup,
+  availableComponents,
+}: VueIslandOptions) => {
+  if (typeof resolve !== "function") {
+    throw new Error(
+      "[LiveIslands][vue] createVueIsland requires a resolve function.",
+    );
+  }
+
+  const available = availableComponentNames(availableComponents);
+
   return {
     setup: setup || defaultSetup,
     resolve: async (path: string): Promise<Component> => {
-      let component = resolve(path);
-      if (!component) throw new Error(`Component ${path} not found!`);
-      return await resolveComponent(component);
+      let component: ComponentOrComponentPromise | undefined | null;
+
+      try {
+        component = resolve(path);
+      } catch (error) {
+        throw componentLoadError("vue", path, error, available);
+      }
+
+      if (!component) throw componentNotFoundError("vue", path, available);
+
+      try {
+        return await resolveComponent(component);
+      } catch (error) {
+        throw componentLoadError("vue", path, error, available);
+      }
     },
   };
 };

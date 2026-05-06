@@ -89,6 +89,7 @@ export interface SetupContext {
 export type VueIslandOptions = {
   resolve: (path: string) => ComponentOrComponentPromise | undefined | null;
   setup?: (context: SetupContext) => App;
+  availableComponents?: ComponentMap | string[];
 };
 
 export type VueIslandApp = {

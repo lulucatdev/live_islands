@@ -36,6 +36,7 @@ const components = {
 };
 
 export default createReactIsland({
+  availableComponents: components,
   resolve: (name) => components[name]?.(),
 });
 ```
@@ -54,6 +55,12 @@ export default createVueIsland({
 
 You can still pass a plain synchronous component map. Async registries are the recommended default for larger apps.
 
+Run the full installer verifier after wiring async registries. It checks that the client build actually emitted lazy chunks:
+
+```bash
+mix live_islands.verify_install --full
+```
+
 ## LiveView Pages
 
 Different LiveViews already behave like different pages. With async registries, a LiveView only loads the island chunks that appear in its rendered DOM.
@@ -70,3 +77,7 @@ This keeps the architecture close to Astro:
 SSR and lazy hydration work together. When `ssr={true}` or `v-ssr={true}`, LiveIslands can render initial HTML on the server and hydrate it later according to the `client` strategy.
 
 Use `client={:none}` only when the server-rendered island should stay static.
+
+## Diagnostics
+
+When a component cannot be found or loaded, LiveIslands reports the framework, component name, and known registry entries when available. Unknown `client` strategies are warned in the browser console and fall back to `load`.

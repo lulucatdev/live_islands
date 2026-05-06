@@ -31,6 +31,7 @@ const modules = import.meta.glob("./react-components/**/*.jsx");
 
 const hooks = getIslandHooks({
   react: createReactIsland({
+    availableComponents: modules,
     resolve: (name) => modules[`./react-components/${name}.jsx`]?.(),
   }),
   vue: createVueIsland({ resolve: vueResolver }),
@@ -66,11 +67,11 @@ end
 ```bash
 mix deps.get
 mix live_islands.install
-npm install --prefix assets
 mix live_islands.verify_install
+mix live_islands.verify_install --full --install
 ```
 
-`mix live_islands.install` is a scaffold copier only. It preserves existing project files and does not remove daisyUI or rewrite your Phoenix asset pipeline. Use [the installation guide](guides/installation.md) or [the install skill](skills/live-islands-install/SKILL.md) to wire the project intentionally, then run the verifier and asset builds.
+`mix live_islands.install` is a scaffold copier only. It preserves existing project files and does not remove daisyUI or rewrite your Phoenix asset pipeline. Use [the installation guide](guides/installation.md) or [the install skill](skills/live-islands-install/SKILL.md) to wire the project intentionally, then run the static and full verifiers.
 
 ## Credits
 

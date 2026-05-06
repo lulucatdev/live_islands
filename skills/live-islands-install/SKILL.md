@@ -13,7 +13,7 @@ Start by reading the target Phoenix project:
 2. Decide whether the project already uses Vite. Prefer adapting existing Vite config over replacing it.
 3. Preserve existing UI choices. Do not remove daisyUI, custom Tailwind plugins, themes, CSS, or vendor files unless the user explicitly asks.
 4. Wire only the LiveIslands-required integration points from `references/integration-checklist.md`.
-5. Run the verifier and build commands from `references/verification.md`.
+5. Run the static verifier, full frontend verifier, and remaining build/test commands from `references/verification.md`.
 
 Use `mix live_islands.install` only as an optional scaffold copier for missing files under `assets/`. It intentionally does not patch project files.
 

@@ -129,6 +129,7 @@ const components = {
 };
 
 export default createReactIsland({
+  availableComponents: components,
   resolve: (name) => components[name]?.(),
 });
 ```
@@ -190,12 +191,27 @@ Run the static integration verifier:
 mix live_islands.verify_install
 ```
 
-Then run the real build/test checks:
+Then run the full frontend verifier. It runs the Vite client build, the SSR bundle build, and checks for emitted CSS, JavaScript, and lazy island chunks:
 
 ```bash
-npm install --prefix assets
-npm run build --prefix assets
-npm run build-server --prefix assets
+mix live_islands.verify_install --full
+```
+
+If node modules are not installed yet:
+
+```bash
+mix live_islands.verify_install --full --install
+```
+
+If SSR is intentionally disabled:
+
+```bash
+mix live_islands.verify_install --full --skip-ssr
+```
+
+Then run the remaining Elixir checks:
+
+```bash
 mix compile
 mix test
 ```

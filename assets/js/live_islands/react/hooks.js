@@ -5,10 +5,19 @@ import { decodeCompactPatch } from "./compactPatch";
 import { applyPatch } from "./jsonPatch";
 import { normalizeReactIslandApp } from "./app";
 import { scheduleHydration } from "../hydration";
+import { describeIslandElement } from "../diagnostics.js";
 
 function getAttributeJson(el, attributeName) {
   const data = el.getAttribute(attributeName);
-  return data ? JSON.parse(data) : {};
+  if (!data) return {};
+
+  try {
+    return JSON.parse(data);
+  } catch (error) {
+    throw new Error(
+      `[LiveIslands][react] Failed to parse ${attributeName} for ${describeIslandElement(el)}: ${error.message}`,
+    );
+  }
 }
 
 function getChildren(hook) {
@@ -92,7 +101,9 @@ export function getHooks(components) {
     mounted() {
       const componentName = this.el.getAttribute("data-name");
       if (!componentName) {
-        throw new Error("Component name must be provided");
+        throw new Error(
+          `[LiveIslands][react] Component name must be provided for ${describeIslandElement(this.el)}.`,
+        );
       }
 
       this._props = getProps(this);

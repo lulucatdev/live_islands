@@ -1,3 +1,5 @@
+import { describeIslandElement, warnLiveIslands } from "./diagnostics.js";
+
 const runAsync = (callback) => {
   Promise.resolve()
     .then(callback)
@@ -75,10 +77,21 @@ export function scheduleHydration(el, callback) {
       cancel = onVisible(el, hydrate);
       break;
     case "media":
+      if (!el.getAttribute("data-client-media")) {
+        warnLiveIslands(
+          `${describeIslandElement(el)} uses client="media" without data-client-media. Hydrating on idle instead.`,
+        );
+      }
       cancel = onMedia(el.getAttribute("data-client-media"), hydrate);
       break;
     case "load":
+      hydrate();
+      cancel = () => {};
+      break;
     default:
+      warnLiveIslands(
+        `${describeIslandElement(el)} uses unknown client strategy "${strategy}". Falling back to "load".`,
+      );
       hydrate();
       cancel = () => {};
       break;

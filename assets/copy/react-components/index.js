@@ -7,6 +7,7 @@ const components = {
 };
 
 export default createReactIsland({
+  availableComponents: components,
   resolve: (name) => {
     const component = components[name];
     return typeof component === "function" && name !== "Link"

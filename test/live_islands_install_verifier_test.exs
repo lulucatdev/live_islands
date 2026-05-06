@@ -18,6 +18,36 @@ defmodule LiveIslandsInstallVerifierTest do
     assert Enum.any?(checks, &(&1.name == "LiveSocket hooks" and not &1.ok?))
   end
 
+  test "verify with artifacts checks the built Vite, SSR, and lazy chunk outputs" do
+    project_root = project_fixture()
+
+    write!(project_root, "priv/static/assets/app.js", "import('./simple.js')")
+    write!(project_root, "priv/static/assets/app.css", ".text-red-700{}")
+    write!(project_root, "priv/static/assets/simple.js", "export default {}")
+    write!(project_root, "priv/island-components/server.js", "export function render() {}")
+    write!(project_root, "priv/island-components/package.json", ~s({"type":"module"}))
+
+    assert {:ok, checks} = InstallVerifier.verify(project_root, artifacts: true)
+    assert Enum.any?(checks, &(&1.name == "lazy chunk artifacts" and &1.ok?))
+    assert Enum.any?(checks, &(&1.name == "SSR build artifacts" and &1.ok?))
+  end
+
+  test "verify_full runs build commands before checking artifacts" do
+    project_root = project_fixture()
+
+    write!(project_root, "priv/static/assets/app.js", "import('./simple.js')")
+    write!(project_root, "priv/static/assets/app.css", ".text-red-700{}")
+    write!(project_root, "priv/static/assets/simple.js", "export default {}")
+    write!(project_root, "priv/island-components/server.js", "export function render() {}")
+    write!(project_root, "priv/island-components/package.json", ~s({"type":"module"}))
+
+    runner = fn _command, _args, _opts -> {"ok", 0} end
+
+    assert {:ok, checks} = InstallVerifier.verify_full(project_root, runner: runner)
+    assert Enum.any?(checks, &(&1.name == "Vite client build" and &1.ok?))
+    assert Enum.any?(checks, &(&1.name == "SSR bundle build" and &1.ok?))
+  end
+
   defp project_fixture do
     project_root = tmp_dir!("live_islands_verified_project")
 
@@ -37,6 +67,8 @@ defmodule LiveIslandsInstallVerifierTest do
       },
       "devDependencies": {
         "vite": "^6.3.0",
+        "tailwindcss": "^4.1.0",
+        "@tailwindcss/vite": "^4.1.0",
         "@vitejs/plugin-react": "^4.3.0",
         "@vitejs/plugin-vue": "^6.0.0"
       }
@@ -46,8 +78,15 @@ defmodule LiveIslandsInstallVerifierTest do
     write!(project_root, "assets/vite.config.js", """
     import react from "@vitejs/plugin-react";
     import vue from "@vitejs/plugin-vue";
+    import tailwindcss from "@tailwindcss/vite";
     import liveIslandsPlugin from "live_islands/vite-plugin";
-    export default { plugins: [react(), vue(), liveIslandsPlugin()] };
+    export default { plugins: [react(), vue(), liveIslandsPlugin(), tailwindcss()] };
+    """)
+
+    write!(project_root, "assets/css/app.css", """
+    @import "tailwindcss" source(none);
+    @source "../react-components";
+    @source "../vue-components";
     """)
 
     write!(project_root, "assets/js/app.js", """
@@ -63,8 +102,15 @@ defmodule LiveIslandsInstallVerifierTest do
     export function render(framework, name, props, slots) {}
     """)
 
-    write!(project_root, "assets/react-components/index.js", "export default {};\n")
-    write!(project_root, "assets/vue-components/index.js", "export default {};\n")
+    write!(project_root, "assets/react-components/index.js", """
+    import { createReactIsland } from "live_islands/react";
+    const components = { Simple: () => import("./simple") };
+    export default createReactIsland({ resolve: (name) => components[name]?.() });
+    """)
+
+    write!(project_root, "assets/vue-components/index.js", """
+    export default import.meta.glob("./**/*.vue");
+    """)
 
     write!(project_root, "lib/demo_web.ex", """
     defmodule DemoWeb do

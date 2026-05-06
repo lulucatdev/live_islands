@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../react-components";
+@source "../vue-components";
 
 /* using legacy config file */
 /* https://tailwindcss.com/docs/upgrade-guide#using-a-javascript-config-file */

@@ -10,6 +10,7 @@ export type ReactComponentPromise =
 
 export type ReactIslandOptions = {
   resolve: (name: string) => ReactComponentPromise | undefined | null;
+  availableComponents?: Record<string, unknown> | string[];
 };
 
 export function createReactIsland(options: ReactIslandOptions): {
