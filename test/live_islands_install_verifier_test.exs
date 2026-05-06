@@ -68,7 +68,7 @@ defmodule LiveIslandsInstallVerifierTest do
 
     write!(project_root, "mix.exs", """
     defmodule Demo.MixProject do
-      defp deps, do: [{:live_islands, "~> 0.3.0"}]
+      defp deps, do: [{:live_islands, "~> 0.4.0"}]
     end
     """)
 
@@ -146,7 +146,7 @@ defmodule LiveIslandsInstallVerifierTest do
 
     write!(project_root, "config/config.exs", """
     import Config
-    config :live_islands, ssr: true
+    config :live_islands, otp_app: :demo, ssr: true
     """)
 
     project_root

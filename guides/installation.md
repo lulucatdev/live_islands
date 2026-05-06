@@ -106,7 +106,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
 });
 ```
 
-Use the Vite helper in the root layout for development assets:
+Use the Vite helper in the root layout. In development it points at the Vite
+server; in production it reads the Vite manifest and emits the content-hashed
+entry files so dynamic island chunks share the same module graph.
 
 ```heex
 <LiveIslands.Reload.vite_assets assets={["/js/app.js", "/css/app.css"]}>
@@ -164,6 +166,7 @@ For SSR in development:
 
 ```elixir
 config :live_islands,
+  otp_app: :my_app,
   ssr: true,
   enable_props_diff: true,
   vite_host: System.get_env("VITE_HOST") || "http://localhost:5173",
@@ -174,6 +177,7 @@ For SSR in production:
 
 ```elixir
 config :live_islands,
+  otp_app: :my_app,
   ssr_module: LiveIslands.SSR.NodeJS
 ```
 

@@ -54,7 +54,8 @@ defmodule LiveIslands.InstallVerifier do
       server_entrypoint(project_root),
       web_helpers(project_root),
       root_layout(project_root),
-      live_islands_config(project_root)
+      live_islands_config(project_root),
+      vite_manifest_runtime_config(project_root)
     ]
   end
 
@@ -309,6 +310,31 @@ defmodule LiveIslands.InstallVerifier do
       if(found?,
         do: "config files include config :live_islands",
         else: "config/*.exs does not configure :live_islands"
+      )
+    )
+  end
+
+  defp vite_manifest_runtime_config(project_root) do
+    config_files =
+      project_root
+      |> Path.join("config/*.exs")
+      |> Path.wildcard()
+
+    found? =
+      Enum.any?(config_files, fn path ->
+        content = File.read!(path)
+
+        String.contains?(content, "config :live_islands") and
+          (String.contains?(content, "otp_app:") or
+             String.contains?(content, "vite_manifest_path:"))
+      end)
+
+    check(
+      "Vite manifest runtime config",
+      found?,
+      if(found?,
+        do: "config lets LiveIslands find the Vite manifest in production",
+        else: "set config :live_islands, otp_app: :your_app or vite_manifest_path: ..."
       )
     )
   end

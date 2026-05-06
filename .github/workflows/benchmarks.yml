@@ -1,0 +1,52 @@
+---
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  production_benchmarks:
+    runs-on: ubuntu-latest
+    name: Production benchmark suite
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.2.0"
+          elixir-version: "1.18.1"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install Mix dependencies
+        run: mix deps.get
+
+      - name: Install example Mix dependencies
+        run: mix deps.get
+        working-directory: live_islands_examples
+
+      - name: Install root Node dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install example asset dependencies
+        run: npm ci --prefix live_islands_examples/assets
+
+      - name: Run production benchmarks
+        run: npm run benchmarks
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-islands-benchmarks
+          path: |
+            benchmarks/results/latest.json
+            benchmarks/results/latest.md

@@ -7,6 +7,7 @@ LiveIslands requires these project-level integration points.
 - Add `{:live_islands, ...}` to `mix.exs`.
 - Import `LiveIslands` inside `html_helpers/0` in `lib/*_web.ex` so `<.react>` and `<.vue>` are available.
 - Add `config :live_islands` in `config/config.exs` or an environment config.
+- Set `otp_app: :your_app` so production helpers can find `priv/static/assets/.vite/manifest.json` inside releases.
 - For development SSR, set `ssr_module: LiveIslands.SSR.ViteJS` and `vite_host`.
 - For production SSR, set `ssr_module: LiveIslands.SSR.NodeJS` and add `NodeJS.Supervisor` to the supervision tree. If the user does not want SSR, set `ssr: false` and skip the supervisor.
 
@@ -31,7 +32,7 @@ LiveIslands requires these project-level integration points.
 - Ensure `assets/react-components/index.{js,jsx,ts,tsx}` and `assets/vue-components/index.{js,ts}` exist.
 - Use async registries in both roots (`import()` or `import.meta.glob`) so Vite emits lazy chunks.
 - Ensure `assets/css/app.css` imports Tailwind and scans `../react-components` and `../vue-components`.
-- Ensure root layout loads Vite assets in development, usually with `LiveIslands.Reload.vite_assets`.
+- Ensure root layout loads Vite assets with `LiveIslands.Reload.vite_assets`; it uses Vite dev assets in development and the Vite manifest in production.
 
 ## Tailwind and daisyUI
 

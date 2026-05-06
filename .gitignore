@@ -28,6 +28,11 @@ live_islands-*.tar
 # Ignore node_modules
 /node_modules/
 
+# Benchmark outputs are machine-specific.
+/benchmarks/results/*.json
+/benchmarks/results/*.md
+!/benchmarks/results/.gitkeep
+
 # LSP elixir
 .elixir_ls/
 .elixir-tools/

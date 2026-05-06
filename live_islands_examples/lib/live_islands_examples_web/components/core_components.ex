@@ -885,7 +885,13 @@ defmodule LiveIslandsExamplesWeb.CoreComponents do
             </a>
           </div>
           <.card_content>
-            <LiveIslands.react name="GithubCode" url={@raw_view_url} language="elixir" />
+            <LiveIslands.react
+              name="GithubCode"
+              url={@raw_view_url}
+              language="elixir"
+              client={:visible}
+              prefetch={:hover}
+            />
           </.card_content>
         </.card>
       </.tabs_content>
@@ -901,7 +907,13 @@ defmodule LiveIslandsExamplesWeb.CoreComponents do
             </a>
           </div>
           <.card_content class="p-6">
-            <LiveIslands.react name="GithubCode" url={@raw_react_url} language={@react_language} />
+            <LiveIslands.react
+              name="GithubCode"
+              url={@raw_react_url}
+              language={@react_language}
+              client={:visible}
+              prefetch={:hover}
+            />
           </.card_content>
         </.card>
       </.tabs_content>

@@ -6,6 +6,10 @@
 /* https://tailwindcss.com/docs/upgrade-guide#using-a-javascript-config-file */
 @config "../tailwind.config.js";
 
+.benchmark-island-shell {
+  min-height: 24rem;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -2,7 +2,7 @@ defmodule LiveIslands.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/lulucatdev/live_islands"
-  @version "0.3.0"
+  @version "0.4.0"
 
   def project do
     [

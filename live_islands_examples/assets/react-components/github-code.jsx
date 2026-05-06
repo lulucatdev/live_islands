@@ -27,7 +27,7 @@ export function GithubCode({ url, language }) {
         const highlightedCode = hljs.highlight(text, { language }).value;
         setCode(highlightedCode);
       } catch (error) {
-        console.error("Error fetching code:", error);
+        console.warn("Error fetching code:", error);
       }
     };
 

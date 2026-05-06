@@ -8,6 +8,7 @@
 import Config
 
 config :live_islands,
+  otp_app: :live_islands_examples,
   ssr_module: LiveIslands.SSR.NodeJS
 
 config :live_islands_examples,

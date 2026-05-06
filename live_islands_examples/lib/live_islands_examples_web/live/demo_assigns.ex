@@ -44,6 +44,9 @@ defmodule LiveIslandsExamplesWeb.LiveDemoAssigns do
         {LiveIslandsExamplesWeb.LiveCapabilities, _} ->
           :capabilities
 
+        {LiveIslandsExamplesWeb.LiveBenchmarks, _} ->
+          :benchmarks
+
         {_view, _live_action} ->
           nil
       end

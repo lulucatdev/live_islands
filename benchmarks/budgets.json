@@ -1,0 +1,16 @@
+{
+  "home": {
+    "maxTotalBytes": 650000,
+    "maxUniqueBytes": 650000
+  },
+  "benchmarks": {
+    "maxInitialTotalBytes": 700000,
+    "maxInitialUniqueBytes": 700000,
+    "maxInitialJsBytes": 560000,
+    "maxHeavyInteractionTotalBytes": 2200000,
+    "maxHeavyInteractionJsBytes": 2100000
+  },
+  "artifacts": {
+    "maxGzipBytes": 1900000
+  }
+}

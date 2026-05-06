@@ -4,6 +4,9 @@ import "vite/modulepreload-polyfill";
 import { createReactIsland, Link } from "live_islands/react";
 
 const components = {
+  BenchmarkStaticReport: () => import("./benchmark-static-report"),
+  BenchmarkSummary: () => import("./benchmark-summary"),
+  BenchmarkWorkbench: () => import("./benchmark-workbench"),
   Capabilities: () => import("./capabilities"),
   Context: () => import("./context"),
   Counter: () => import("./counter"),

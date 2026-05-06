@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.4.0
+
+Production benchmarks and manifest-driven asset loading.
+
+- Added a detailed `/benchmarks` example route that combines server-only SSR, React, Vue, page-scoped manifests, deferred hydration, KaTeX rendering, and PDF.js rendering.
+- Added `npm run benchmarks`, budget checks, JSON/Markdown result output, browser error diagnostics, and comparison support for release-to-release measurement.
+- Added a GitHub Actions benchmark workflow for `v*` release tags and manual runs.
+- Switched production client builds to Vite content-hashed entrypoints and taught `LiveIslands.Reload.vite_assets` to render assets from the Vite manifest.
+- Deferred hidden example code tabs with visible/hover strategies so they no longer hydrate or fetch code during the initial route load.
+
 ## v0.3.0
 
 Route-scoped island loading and production manifest verification.

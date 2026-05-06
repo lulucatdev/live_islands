@@ -9,6 +9,8 @@ import liveIslandsPlugin from "live_islands/vite-plugin";
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
   const isDev = command !== "build";
+  const isSsrBuild = process.argv.includes("--ssr");
+  const useHashedAssets = !isDev && !isSsrBuild;
 
   return {
     base: isDev ? undefined : "/assets",
@@ -20,6 +22,7 @@ export default defineConfig(({ command }) => {
       noExternal: isDev ? undefined : true,
     },
     resolve: {
+      dedupe: ["react", "react-dom", "vue"],
       alias: {
         "@": path.resolve(__dirname, "."),
       },
@@ -50,10 +53,11 @@ export default defineConfig(({ command }) => {
           app: path.resolve(__dirname, "./js/app.js"),
         },
         output: {
-          // remove hashes to match phoenix way of handling asssets
-          entryFileNames: "[name].js",
-          chunkFileNames: "[name].js",
-          assetFileNames: "[name][extname]",
+          entryFileNames: useHashedAssets ? "[name]-[hash].js" : "[name].js",
+          chunkFileNames: useHashedAssets ? "[name]-[hash].js" : "[name].js",
+          assetFileNames: useHashedAssets
+            ? "[name]-[hash][extname]"
+            : "[name][extname]",
         },
       },
     },

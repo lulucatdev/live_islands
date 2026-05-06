@@ -156,6 +156,16 @@ defmodule LiveIslandsExamples do
     }
   end
 
+  def demo(:benchmarks) do
+    %{
+      raw_view_url: "#{@raw_url}#{@live_views}/benchmarks.ex",
+      view_url: "#{@url}#{@live_views}/benchmarks.ex",
+      view_language: "elixir",
+      raw_react_url: "#{@raw_url}#{@react}/benchmark-workbench.jsx",
+      react_url: "#{@url}#{@react}/benchmark-workbench.jsx"
+    }
+  end
+
   def demo(demo) do
     raise ArgumentError, "Unknown demo: #{inspect(demo)}"
   end

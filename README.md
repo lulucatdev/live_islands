@@ -15,8 +15,10 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
 - Page-scoped island manifest and `prefetch={...}` policies for component chunks
 - Vite manifest verification for lazy island chunks in production builds
+- Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
+- Production benchmark suite for initial route bytes, SSR assertions, lazy chunks, KaTeX, and PDF.js
 
 ## Package Exports
 
@@ -86,6 +88,16 @@ mix live_islands.verify_install --full --install
 ```
 
 `mix live_islands.install` is a scaffold copier only. It preserves existing project files and does not remove daisyUI or rewrite your Phoenix asset pipeline. Use [the installation guide](guides/installation.md) or [the install skill](skills/live-islands-install/SKILL.md) to wire the project intentionally, then run the static and full verifiers.
+
+## Benchmarks
+
+Run the production benchmark suite from the repo root:
+
+```bash
+npm run benchmarks
+```
+
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, verifies SSR/server-only islands, measures initial route bytes, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`.
 
 ## Credits
 
