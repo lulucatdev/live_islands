@@ -1,7 +1,7 @@
 {
   "name": "live_islands",
   "version": "0.1.0",
-  "description": "E2E React and Vue component islands for Phoenix LiveView",
+  "description": "Astro-style React and Vue component islands for Phoenix LiveView",
   "license": "MIT",
   "module": "./assets/js/live_islands/index.ts",
   "exports": {
@@ -27,16 +27,26 @@
     "./server": "./assets/js/live_islands/server.mjs",
     "./vite-plugin": "./assets/js/live_islands/vite-plugin.js"
   },
-  "author": "LiveIslands maintainers",
+  "author": "LiveIslands contributors",
   "repository": {
     "type": "git",
     "url": "git://github.com/lulucatdev/live_islands.git"
   },
   "files": [
-    "README.MD",
+    "README.md",
+    "NOTICE.md",
     "LICENSE.md",
     "package.json",
     "assets/js/live_islands"
+  ],
+  "keywords": [
+    "phoenix",
+    "liveview",
+    "react",
+    "vue",
+    "islands",
+    "ssr",
+    "vite"
   ],
   "peerDependencies": {
     "react": ">=18",

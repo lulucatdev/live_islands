@@ -7,4 +7,8 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ## v0.1.0
 
-Initial LiveIslands release with React and Vue component islands for Phoenix LiveView.
+Initial independent LiveIslands release with React and Vue component islands for Phoenix LiveView.
+
+- Unified React and Vue adapters under one Elixir package and JavaScript package.
+- Added Vite, Tailwind, SSR, lazy hydration, and install verification workflows.
+- Added attribution for `mrdotb/live_react` and `Valian/live_vue`.

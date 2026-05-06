@@ -12,7 +12,7 @@ defmodule LiveIslands.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "E2E React and Vue component islands for Phoenix LiveView",
+      description: "Astro-style React and Vue component islands for Phoenix LiveView",
       package: package(),
       docs: docs(),
       source_url: @source_url
@@ -54,14 +54,14 @@ defmodule LiveIslands.MixProject do
 
   defp package do
     [
-      maintainers: ["LiveIslands maintainers"],
+      maintainers: ["LiveIslands contributors"],
       licenses: ["MIT"],
       links: %{
         Github: @source_url
       },
       files:
-        ~w(assets/copy assets/js lib skills)s ++
-          ~w(CHANGELOG.md LICENSE.md mix.exs package.json README.md .formatter.exs)s
+        ~w(assets/copy assets/js guides lib skills)s ++
+          ~w(CHANGELOG.md LICENSE.md NOTICE.md mix.exs package.json README.md .formatter.exs)s
     ]
   end
 

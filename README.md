@@ -1,8 +1,10 @@
 # LiveIslands
 
-React and Vue component islands inside Phoenix LiveView.
+Astro-style React and Vue component islands inside Phoenix LiveView.
 
 LiveIslands is a framework-neutral island layer for rendering client components from Phoenix LiveView. It exposes first-class React and Vue adapters under a single Elixir package and a single JavaScript package.
+
+LiveIslands is an independent project. It began as an extraction and redesign informed by the excellent `live_react` and `live_vue` projects, then moved to a unified React/Vue runtime with Vite, Tailwind, SSR, lazy hydration, and an agent-verifiable installation flow.
 
 ## Features
 
@@ -75,7 +77,9 @@ mix live_islands.verify_install --full --install
 
 ## Credits
 
-LiveIslands builds on the work from:
+LiveIslands is built with gratitude for the upstream projects that made the direction clear:
 
 - [mrdotb/live_react](https://github.com/mrdotb/live_react)
 - [Valian/live_vue](https://github.com/Valian/live_vue)
+
+See [NOTICE.md](NOTICE.md) for attribution and license notes.
