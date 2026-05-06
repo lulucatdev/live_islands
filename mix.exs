@@ -60,7 +60,7 @@ defmodule LiveIslands.MixProject do
         Github: @source_url
       },
       files:
-        ~w(assets/copy assets/js lib)s ++
+        ~w(assets/copy assets/js lib skills)s ++
           ~w(CHANGELOG.md LICENSE.md mix.exs package.json README.md .formatter.exs)s
     ]
   end

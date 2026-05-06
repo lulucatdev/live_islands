@@ -1,17 +1,18 @@
 # Installation
 
-LiveIslands installs a Vite asset pipeline for Phoenix applications and uses it for both browser assets and SSR bundles. The installed default is:
+LiveIslands is installed as a Phoenix integration, not as a one-size-fits-all rewrite of the host app.
 
-- Vite for development and production asset builds
-- Tailwind CSS through npm and `@tailwindcss/vite`
-- React and Vue component roots in the same Phoenix project
-- No daisyUI integration
+Phoenix projects differ: some use the Phoenix 1.8 Tailwind/daisyUI defaults, some already use Vite, and some have a custom design system. LiveIslands only requires the integration points below. It does not require removing daisyUI.
 
-Phoenix 1.8 new applications ship with Tailwind CSS 4 and daisyUI through Mix-managed `tailwind` and `esbuild` assets. `mix live_islands.install` intentionally replaces that stack with npm + Vite so React and Vue islands, Tailwind CSS, and SSR share one JavaScript toolchain.
+## Recommended Agent Flow
 
-## Steps
+Use the repo skill at `skills/live-islands-install/SKILL.md` when installing through a coding agent. The skill tells the agent to inspect the target project first, preserve existing UI choices, wire only the required LiveIslands pieces, and run the verifier.
 
-Install Node.js, then add LiveIslands to `mix.exs`:
+`mix live_islands.install` is optional. It only copies missing template files under `assets/`; it does not patch `mix.exs`, JavaScript, layouts, config, Tailwind, or daisyUI.
+
+## Required Pieces
+
+Add LiveIslands to `mix.exs`:
 
 ```elixir
 def deps do
@@ -21,81 +22,142 @@ def deps do
 end
 ```
 
-Run the installer:
+Wire Phoenix helpers:
+
+```elixir
+defp html_helpers do
+  quote do
+    import LiveIslands
+  end
+end
+```
+
+Install the JavaScript packages used by the Vite pipeline:
+
+```json
+{
+  "dependencies": {
+    "live_islands": "file:../deps/live_islands",
+    "phoenix": "file:../deps/phoenix",
+    "phoenix_html": "file:../deps/phoenix_html",
+    "phoenix_live_view": "file:../deps/phoenix_live_view",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vue": "^3.5.10"
+  },
+  "devDependencies": {
+    "vite": "^6.3.3",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "@tailwindcss/vite": "^4.1.12",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5.6.2"
+  }
+}
+```
+
+Configure Vite with React, Vue, and LiveIslands plugins. If the Phoenix app imports colocated hooks from `phoenix-colocated/<app>`, add an alias to the Mix build output:
+
+```js
+import path from "path";
+import react from "@vitejs/plugin-react";
+import vue from "@vitejs/plugin-vue";
+import liveIslandsPlugin from "live_islands/vite-plugin";
+import { defineConfig } from "vite";
+
+export default defineConfig(({ command }) => {
+  const isDev = command !== "build";
+  const mixEnv = process.env.MIX_ENV || "dev";
+
+  return {
+    base: isDev ? undefined : "/assets",
+    plugins: [react(), vue(), liveIslandsPlugin()],
+    resolve: {
+      alias: {
+        "phoenix-colocated": path.resolve(
+          __dirname,
+          `../_build/${mixEnv}/phoenix-colocated`,
+        ),
+      },
+    },
+  };
+});
+```
+
+Wire `assets/js/app.js` by combining LiveIslands hooks with existing hooks:
+
+```js
+import { getIslandHooks } from "live_islands";
+import reactComponents from "../react-components";
+import vueComponents from "../vue-components";
+
+const islandHooks = getIslandHooks({
+  react: reactComponents,
+  vue: vueComponents,
+});
+
+const liveSocket = new LiveSocket("/live", Socket, {
+  hooks: { ...existingHooks, ...islandHooks },
+  params: { _csrf_token: csrfToken },
+});
+```
+
+Use the Vite helper in the root layout for development assets:
+
+```heex
+<LiveIslands.Reload.vite_assets assets={["/js/app.js", "/css/app.css"]}>
+  <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
+  <script type="module" phx-track-static src={~p"/assets/app.js"}>
+  </script>
+</LiveIslands.Reload.vite_assets>
+```
+
+Add component roots and an SSR entrypoint:
+
+- `assets/react-components/index.{js,jsx,ts,tsx}`
+- `assets/vue-components/index.{js,ts}`
+- `assets/js/server.js`
+
+The optional scaffold task can copy starter versions:
 
 ```bash
 mix deps.get
 mix live_islands.install
-npm install --prefix assets
 ```
 
-The installer creates the Vite asset files when they are missing:
+## Tailwind and daisyUI
 
-- `assets/package.json`
-- `assets/vite.config.js`
-- `assets/postcss.config.js`
-- `assets/tsconfig.json`
-- `assets/js/server.js`
-- `assets/react-components/*`
-- `assets/vue-components/*`
+Keep the host app's CSS unless the user asks for a replacement.
 
-It also patches common Phoenix files:
+LiveIslands needs Tailwind to scan React and Vue component directories, but daisyUI can stay:
 
-- removes Mix `:esbuild` and `:tailwind` dependencies
-- adds `{:nodejs, "~> 3.1"}` for production SSR support
-- rewrites `assets.setup`, `assets.build`, and `assets.deploy` aliases to npm scripts
-- rewrites the development watcher to `npm run dev`
-- removes Phoenix 1.8 daisyUI CSS plugin blocks and generated daisyUI vendor files
-- keeps Tailwind CSS sources for Phoenix code, app JS/CSS, React components, and Vue components
-- wires `assets/js/app.js` to `getIslandHooks({react, vue})`
-- preserves Phoenix colocated hooks when present
-- imports `LiveIslands` in web helpers
-- wraps root layout asset tags with `LiveIslands.Reload.vite_assets`
-- configures Vite SSR in development and NodeJS SSR in production
-
-## Verify
-
-Build the installed assets:
-
-```bash
-npm run build --prefix assets
-npm run build-server --prefix assets
-mix compile
+```css
+@source "../react-components";
+@source "../vue-components";
 ```
 
-Render one React component and one Vue component from a template or LiveView:
-
-```heex
-<.react name="Simple" />
-<.vue v-component="status" message="Vue island ready" />
-```
+Phoenix 1.8's default daisyUI `@plugin` and theme blocks are not a problem for LiveIslands if the Vite/Tailwind build passes.
 
 ## SSR
 
-SSR is enabled by default:
+For SSR in development:
 
 ```elixir
 config :live_islands,
   ssr: true,
-  enable_props_diff: true
-```
-
-Development uses the Vite dev server:
-
-```elixir
-config :live_islands,
+  enable_props_diff: true,
   vite_host: System.get_env("VITE_HOST") || "http://localhost:5173",
   ssr_module: LiveIslands.SSR.ViteJS
 ```
 
-Production uses the NodeJS SSR bundle:
+For SSR in production:
 
 ```elixir
 config :live_islands,
   ssr_module: LiveIslands.SSR.NodeJS
 ```
 
-For production SSR, add the NodeJS supervisor to your application supervision tree:
+Add the NodeJS supervisor when production SSR is enabled:
 
 ```elixir
 children = [
@@ -103,4 +165,29 @@ children = [
 ]
 ```
 
-Adjust `pool_size` for the deployment machine. If you do not want SSR in production, set `ssr: false` in production config and omit the supervisor.
+If the project does not need SSR, set `ssr: false` and skip the server bundle and supervisor.
+
+## Verify
+
+Run the static integration verifier:
+
+```bash
+mix live_islands.verify_install
+```
+
+Then run the real build/test checks:
+
+```bash
+npm install --prefix assets
+npm run build --prefix assets
+npm run build-server --prefix assets
+mix compile
+mix test
+```
+
+Finally render one React island and one Vue island:
+
+```heex
+<.react name="Simple" />
+<.vue v-component="status" message="Vue island ready" />
+```

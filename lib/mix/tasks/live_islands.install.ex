@@ -1,11 +1,11 @@
 defmodule Mix.Tasks.LiveIslands.Install do
   @moduledoc """
-  Installs LiveIslands assets and common Phoenix configuration.
+  Copies optional LiveIslands asset templates into a Phoenix project.
   """
 
   use Mix.Task
 
-  @shortdoc "installs LiveIslands assets and common Phoenix configuration"
+  @shortdoc "copies optional LiveIslands asset templates"
 
   @impl Mix.Task
   def run(_args) do
@@ -13,10 +13,13 @@ defmodule Mix.Tasks.LiveIslands.Install do
 
     Mix.shell().info("""
 
-    LiveIslands installation files are in place.
+    LiveIslands scaffold files are in place.
 
-    Your Phoenix assets now use Vite + Tailwind CSS through npm, without daisyUI.
-    Review the generated React and Vue island roots, then run `npm install --prefix assets`.
+    This task only copies missing template files under assets/.
+    It does not patch mix.exs, app.js, layouts, config, Tailwind, or daisyUI.
+
+    Use the LiveIslands install skill or guides/installation.md to wire the
+    project intentionally, then run `mix live_islands.verify_install`.
     """)
   end
 end

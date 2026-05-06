@@ -59,9 +59,10 @@ end
 mix deps.get
 mix live_islands.install
 npm install --prefix assets
+mix live_islands.verify_install
 ```
 
-The installer converts Phoenix's default asset stack to Vite + Tailwind CSS through npm and removes daisyUI from the generated Phoenix 1.8 assets.
+`mix live_islands.install` is a scaffold copier only. It preserves existing project files and does not remove daisyUI or rewrite your Phoenix asset pipeline. Use [the installation guide](guides/installation.md) or [the install skill](skills/live-islands-install/SKILL.md) to wire the project intentionally, then run the verifier and asset builds.
 
 ## Credits
 
