@@ -23,7 +23,7 @@ Add NodeJs.Supervisor to your `application.ex`
 def start(_type, _args) do
   children = [
     ...
-    {NodeJS.Supervisor, [path: LiveReact.SSR.NodeJS.server_path(), pool_size: 4]},
+    {NodeJS.Supervisor, [path: LiveIslands.SSR.NodeJS.server_path(), pool_size: 4]},
   ]
 end
 ```
@@ -31,8 +31,8 @@ end
 Add a config entry to your `config/prod.exs`
 
 ```elixir
-config :live_react,
-  ssr_module: LiveReact.SSR.NodeJS,
+config :live_islands,
+  ssr_module: LiveIslands.SSR.NodeJS,
   ssr: true
 ```
 

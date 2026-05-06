@@ -1,18 +1,30 @@
 defmodule LiveReactExamplesWeb.LiveCapabilities do
   use LiveReactExamplesWeb, :live_view
 
+  alias Phoenix.LiveView.JS
+
   def render(assigns) do
     ~H"""
     <h1 class="flex justify-center mb-10 font-bold">LiveReact Capabilities</h1>
-    <.react
-      name="Capabilities"
-      socket={@socket}
-      entries={@streams.entries}
-      profile={@profile_form}
-      documentUpload={@uploads.documents}
-      uploadedFiles={@uploaded_files}
-      ssr={false}
-    />
+    <div class="grid gap-6">
+      <.react
+        name="Capabilities"
+        socket={@socket}
+        entries={@streams.entries}
+        profile={@profile_form}
+        documentUpload={@uploads.documents}
+        uploadedFiles={@uploaded_files}
+        ssr={false}
+      />
+      <.vue
+        id="vue-capabilities"
+        v-component="status"
+        v-socket={@socket}
+        v-ssr={false}
+        message={@vue_message}
+        v-on:ping={JS.push("vue-ping")}
+      />
+    </div>
     """
   end
 
@@ -21,6 +33,7 @@ defmodule LiveReactExamplesWeb.LiveCapabilities do
       socket
       |> assign(:profile_form, profile_form(%{"email" => "ada@example.com"}))
       |> assign(:uploaded_files, [])
+      |> assign(:vue_message, "Vue island ready")
       |> allow_upload(:documents, accept: ~w(.txt), max_entries: 1)
       |> stream(:entries, [
         %{id: 1, body: "Initial stream row"}
@@ -43,6 +56,10 @@ defmodule LiveReactExamplesWeb.LiveCapabilities do
 
   def handle_event("lookup", %{"query" => query}, socket) do
     {:reply, %{message: "Reply for #{query}"}, socket}
+  end
+
+  def handle_event("vue-ping", %{"source" => source}, socket) do
+    {:noreply, assign(socket, :vue_message, "Vue replied from #{source}")}
   end
 
   def handle_event("profile-validate", %{"profile" => params}, socket) do

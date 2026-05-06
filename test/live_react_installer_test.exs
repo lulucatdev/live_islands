@@ -1,7 +1,7 @@
-defmodule LiveReactInstallerTest do
+defmodule LiveIslandsInstallerTest do
   use ExUnit.Case
 
-  alias LiveReact.Installer
+  alias LiveIslands.Installer
 
   describe "patch_app_js/1" do
     test "adds imports and hooks to a default LiveSocket configuration" do
@@ -18,7 +18,7 @@ defmodule LiveReactInstallerTest do
       patched = Installer.patch_app_js(content)
 
       assert patched =~ ~s(import components from "../react-components";)
-      assert patched =~ ~s(import { getHooks } from "live_react";)
+      assert patched =~ ~s(import { getHooks } from "live_islands/react";)
       assert patched =~ "hooks: getHooks(components),"
     end
 
@@ -41,7 +41,7 @@ defmodule LiveReactInstallerTest do
       content = """
       import topbar from "topbar";
       import components from "../react-components";
-      import { getHooks } from "live_react";
+      import { getHooks } from "live_islands/react";
 
       let liveSocket = new LiveSocket("/live", Socket, {
         hooks: getHooks(components),
@@ -66,8 +66,8 @@ defmodule LiveReactInstallerTest do
       dev = Installer.patch_dev_config("import Config\n")
       prod = Installer.patch_prod_config("import Config\n")
 
-      assert dev =~ "LiveReact.SSR.ViteJS"
-      assert prod =~ "LiveReact.SSR.NodeJS"
+      assert dev =~ "LiveIslands.SSR.ViteJS"
+      assert prod =~ "LiveIslands.SSR.NodeJS"
       assert Installer.patch_dev_config(dev) == dev
       assert Installer.patch_prod_config(prod) == prod
     end

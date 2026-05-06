@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "live_react";
+import { Link } from "live_islands/react";
 
 export function LinkExample({ currentPath = "/" }) {
   return (

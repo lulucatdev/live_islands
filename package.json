@@ -1,31 +1,63 @@
 {
-  "name": "live_react",
+  "name": "live_islands",
   "version": "0.1.0",
-  "description": "E2E reactivity from React and LiveView",
+  "description": "E2E React and Vue component islands for Phoenix LiveView",
   "license": "MIT",
-  "module": "./assets/js/live_react/index.js",
+  "module": "./assets/js/live_islands/index.ts",
   "exports": {
     ".": {
-      "import": "./assets/js/live_react/index.mjs",
-      "types": "./assets/js/live_react/index.d.mts"
+      "import": "./assets/js/live_islands/index.ts",
+      "types": "./assets/js/live_islands/index.ts"
     },
-    "./server": "./assets/js/live_react/server.mjs",
-    "./vite-plugin": "./assets/js/live_react/vite-plugin.js"
+    "./react": {
+      "import": "./assets/js/live_islands/react/index.mjs",
+      "types": "./assets/js/live_islands/react/index.d.mts"
+    },
+    "./react/server": "./assets/js/live_islands/react/server.mjs",
+    "./react/vite-plugin": "./assets/js/live_islands/react/vite-plugin.js",
+    "./vue": {
+      "import": "./assets/js/live_islands/vue/index.ts",
+      "types": "./assets/js/live_islands/vue/index.ts"
+    },
+    "./vue/server": {
+      "import": "./assets/js/live_islands/vue/server.ts",
+      "types": "./assets/js/live_islands/vue/server.ts"
+    },
+    "./vue/vite-plugin": "./assets/js/live_islands/vue/vitePlugin.js",
+    "./server": "./assets/js/live_islands/server.mjs",
+    "./vite-plugin": "./assets/js/live_islands/vite-plugin.js"
   },
-  "author": "Baptiste Chaleil <hello@mrdotb.com>",
+  "author": "LiveIslands maintainers",
   "repository": {
     "type": "git",
-    "url": "git://github.com/mrdotb/live_react.git"
+    "url": "git://github.com/lulucatdev/live_islands.git"
   },
   "files": [
     "README.MD",
     "LICENSE.md",
     "package.json",
-    "assets/js/live_react/*"
+    "assets/js/live_islands"
   ],
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "vue": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "prettier": "^3.3.2"
+    "prettier": "^3.3.2",
+    "vue": "^3.5.10"
   },
   "scripts": {
     "e2e:test": "playwright test --config test/e2e/playwright.config.mjs",

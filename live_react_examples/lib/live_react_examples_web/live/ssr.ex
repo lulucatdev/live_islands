@@ -6,7 +6,7 @@ defmodule LiveReactExamplesWeb.LiveSSR do
     <h1 class="flex justify-center mb-10 font-bold">SSR</h1>
     <a
       class="mb-4 block underline"
-      href="https://github.com/mrdotb/live_react/blob/main/guides/ssr.md"
+      href="https://github.com/lulucatdev/live_islands/blob/main/guides/ssr.md"
     >
       SSR guide
     </a>

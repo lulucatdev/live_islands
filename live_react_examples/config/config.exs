@@ -7,8 +7,8 @@
 # General application configuration
 import Config
 
-config :live_react,
-  ssr_module: LiveReact.SSR.NodeJS
+config :live_islands,
+  ssr_module: LiveIslands.SSR.NodeJS
 
 config :live_react_examples,
   generators: [timestamp_type: :utc_datetime]

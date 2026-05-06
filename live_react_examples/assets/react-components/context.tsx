@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLiveReact } from "live_react";
+import { useLiveReact } from "live_islands/react";
 
 export function Context({ count }: { count: number }) {
   const [amount, setAmount] = useState(1);

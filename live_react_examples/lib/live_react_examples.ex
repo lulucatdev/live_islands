@@ -7,8 +7,8 @@ defmodule LiveReactExamples do
   if it comes from the database, an external API or others.
   """
 
-  @url "https://github.com/mrdotb/live_react/blob/main/live_react_examples"
-  @raw_url "https://raw.githubusercontent.com/mrdotb/live_react/main/live_react_examples"
+  @url "https://github.com/lulucatdev/live_islands/blob/main/live_react_examples"
+  @raw_url "https://raw.githubusercontent.com/lulucatdev/live_islands/main/live_react_examples"
   @dead_views "/lib/live_react_examples_web/controllers/page_html"
   @live_views "/lib/live_react_examples_web/live"
   @react "/assets/react-components"

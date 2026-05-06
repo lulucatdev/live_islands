@@ -26,5 +26,5 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["js/*", "react/**/*"]
+  "include": ["js/*", "react/**/*", "vue-components/**/*"]
 }

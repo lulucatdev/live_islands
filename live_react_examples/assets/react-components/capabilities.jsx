@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useEventReply, useLiveForm, useLiveUpload } from "live_react";
+import { useEventReply, useLiveForm, useLiveUpload } from "live_islands/react";
 
 export function Capabilities({
   entries = [],

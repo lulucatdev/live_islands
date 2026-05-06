@@ -1,9 +1,9 @@
 # Development
 
-The easiest way to get started with development is to clone live_react and run the examples
+The easiest way to get started with development is to clone live_islands and run the examples
 
 ```bash
-git clone https://github.com/mrdotb/live_react.git
+git clone https://github.com/lulucatdev/live_islands.git
 cd live_react_examples
 ```
 

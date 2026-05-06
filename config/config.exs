@@ -4,7 +4,7 @@ if Mix.env() == :dev do
   config :git_ops,
     mix_project: Mix.Project.get!(),
     changelog_file: "CHANGELOG.md",
-    repository_url: "https://github.com/mrdotb/live_react",
+    repository_url: "https://github.com/lulucatdev/live_islands",
     # Instructs the tool to manage your mix version in your `mix.exs` file
     # See below for more information
     manage_mix_version?: true,

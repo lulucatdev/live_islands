@@ -20,12 +20,15 @@ import "phoenix_html";
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "topbar";
-import components from "../react-components";
-import { getHooks } from "live_react";
+import reactComponents from "../react-components";
+import vueComponents from "../vue-components";
+import { getHooks as getReactHooks } from "live_islands/react";
+import { getHooks as getVueHooks } from "live_islands/vue";
 import "../css/app.css";
 
 const hooks = {
-  ...getHooks(components),
+  ...getReactHooks(reactComponents),
+  ...getVueHooks(vueComponents),
 };
 
 let csrfToken = document

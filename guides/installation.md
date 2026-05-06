@@ -1,9 +1,9 @@
 # Installation
 
-LiveReact replaces `hex esbuild` with [Vite](https://vite.dev/) for both client side code and SSR to achieve a better development experience. Why ?
+LiveIslands replaces `hex esbuild` with [Vite](https://vite.dev/) for both client side code and SSR to achieve a better development experience. Why ?
 
 - Vite provides a best-in-class Hot-Reload functionality and offers [many benefits](https://vitejs.dev/guide/why#why-vite) not present in esbuild
-- `hex esbuild` package doesn't support plugins, while it's possible to do ssr with `hex esbuild` (check [v0.2.0-rc-0](https://github.com/mrdotb/live_react/tree/v0.2.0-rc.0)) the SSR in development is broken.
+- `hex esbuild` package doesn't support plugins, while it's possible to do ssr with `hex esbuild` (check [v0.2.0-rc-0](https://github.com/lulucatdev/live_islands/tree/v0.2.0-rc.0)) the SSR in development is broken.
 - the integration to react and ssr is more documented with Vite
 
 In production, we'll use [elixir-nodejs](https://github.com/revelrylabs/elixir-nodejs) for SSR. If you don't need SSR, you can disable it with one line of code. TypeScript will be supported as well.
@@ -12,12 +12,12 @@ In production, we'll use [elixir-nodejs](https://github.com/revelrylabs/elixir-n
 
 0. install nodejs (I recommend [mise](https://mise.jdx.dev/))
 
-1. Add `live_react` to your list of dependencies in `mix.exs` and run `mix deps.get`
+1. Add `live_islands` to your list of dependencies in `mix.exs` and run `mix deps.get`
 
 ```elixir
 def deps do
   [
-    {:live_react, "~> 1.0.1"},
+    {:live_islands, git: "https://github.com/lulucatdev/live_islands"},
     {:nodejs, "~> 3.1.2"} # if you want to use SSR in production
   ]
 end
@@ -26,21 +26,21 @@ end
 2. Add a config entry to your `config/dev.exs`
 
 ```elixir
-config :live_react,
+config :live_islands,
   vite_host: "http://localhost:5173",
-  ssr_module: LiveReact.SSR.ViteJS,
+  ssr_module: LiveIslands.SSR.ViteJS,
   ssr: true
 ```
 
 3. Add a config entry to your `config/prod.exs`
 
 ```elixir
-config :live_react,
-  ssr_module: LiveReact.SSR.NodeJS,
+config :live_islands,
+  ssr_module: LiveIslands.SSR.NodeJS,
   ssr: true # or false if you don't want SSR in production
 ```
 
-4. Add `import LiveReact` in `html_helpers/0` inside `/lib/<app_name>_web.ex` like so:
+4. Add `import LiveIslands` in `html_helpers/0` inside `/lib/<app_name>_web.ex` like so:
 
 ```elixir
 # /lib/<app_name>_web.ex
@@ -50,7 +50,7 @@ defp html_helpers do
 
     # ...
 
-    import LiveReact # <-- Add this line
+    import LiveIslands # <-- Add this line
 
     # ...
 
@@ -58,7 +58,7 @@ defp html_helpers do
 end
 ```
 
-5. LiveReact includes an installer task for the required asset files and common Phoenix configuration. It preserves files that already exist in your project and applies conservative edits to `assets/js/app.js`, `config/config.exs`, `config/dev.exs`, and `config/prod.exs`.
+5. LiveIslands includes an installer task for the required asset files and common Phoenix configuration. It preserves files that already exist in your project and applies conservative edits to `assets/js/app.js`, `config/config.exs`, `config/dev.exs`, and `config/prod.exs`.
 
 It will create:
 
@@ -71,18 +71,18 @@ It will create:
 
 ```bash
 mix deps.get
-mix live_react.install
+mix live_islands.install
 npm install --prefix assets
 ```
 
-The older `mix live_react.setup` task remains available when you only want to copy the asset templates.
+The older `mix live_islands.setup` task remains available when you only want to copy the asset templates.
 
-7. Confirm that your `assets/js/app.js` file contains the LiveReact hooks
+7. Confirm that your `assets/js/app.js` file contains the LiveIslands hooks
 
 ```javascript
 ...
 import topbar from "topbar" // instead of ../vendor/topbar
-import { getHooks } from  "live_react";
+import { getHooks } from  "live_islands/react";
 import components from "../react-components";
 import "../css/app.css" // the css file is handled by vite
 
@@ -115,11 +115,11 @@ content: [
 8. Let's update `root.html.heex` to use Vite files in development. There's a handy wrapper for it.
 
 ```html
-<LiveReact.Reload.vite_assets assets={["/js/app.js", "/css/app.css"]}>
+<LiveIslands.Reload.vite_assets assets={["/js/app.js", "/css/app.css"]}>
   <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
   <script type="module" phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
   </script>
-</LiveReact.Reload.vite_assets>
+</LiveIslands.Reload.vite_assets>
 ```
 
 9. Update `mix.exs` aliases and remove `tailwind` and `esbuild` packages
@@ -162,14 +162,14 @@ config :my_app, MyAppWeb.Endpoint,
   ]
 ```
 
-12. To make SSR working with `LiveReact.SSR.NodeJS` in production, you have to add this entry to your `application.ex` supervision tree to run the NodeJS server
+12. To make SSR working with `LiveIslands.SSR.NodeJS` in production, you have to add this entry to your `application.ex` supervision tree to run the NodeJS server
 
 If you don't want SSR in production, you can skip this step.
 
 ```elixir
 children = [
   ...
-  {NodeJS.Supervisor, [path: LiveReact.SSR.NodeJS.server_path(), pool_size: 4]},
+  {NodeJS.Supervisor, [path: LiveIslands.SSR.NodeJS.server_path(), pool_size: 4]},
   # note Adjust the pool_size depending of the machine
 ]
 ```
@@ -192,7 +192,7 @@ You can also use the built-in Link component for LiveView navigation:
 ```
 
 ```javascript
-import { Link } from "live_react";
+import { Link } from "live_islands/react";
 
 function MyComponent() {
   return (
@@ -227,7 +227,7 @@ config :my_app, MyAppWeb.Endpoint,
   ]
 ```
 
-At this point the Phoenix application can render React components through LiveReact.
+At this point the Phoenix application can render React components through LiveIslands.
 
 ## Adjusting your own package.json
 
@@ -246,7 +246,7 @@ npm install -D @tailwindcss/forms @tailwindcss/postcss @tailwindcss/vite
 npm install -D typescript @types/react @types/react-dom
 
 # runtime dependencies
-npm install --save react react-dom topbar ../deps/live_react ../deps/phoenix ../deps/phoenix_html ../deps/phoenix_live_view
+npm install --save react react-dom topbar ../deps/live_islands ../deps/phoenix ../deps/phoenix_html ../deps/phoenix_live_view
 
 # remove topbar from vendor, since we'll use it from node_modules
 rm vendor/topbar.js

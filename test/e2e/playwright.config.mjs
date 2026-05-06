@@ -4,13 +4,16 @@ import { fileURLToPath } from "node:url";
 const exampleCwd = fileURLToPath(
   new URL("../../live_react_examples", import.meta.url),
 );
+const port = process.env.E2E_PORT || "4000";
+const vitePort = process.env.E2E_VITE_PORT || "5173";
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: ".",
   timeout: 30_000,
   fullyParallel: false,
   use: {
-    baseURL: "http://127.0.0.1:4000",
+    baseURL,
     trace: "on-first-retry",
   },
   projects: [
@@ -20,9 +23,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "mix phx.server",
+    command: `PORT=${port} VITE_PORT=${vitePort} VITE_HOST=http://localhost:${vitePort} mix phx.server`,
     cwd: exampleCwd,
-    url: "http://127.0.0.1:4000/capabilities",
+    url: `${baseURL}/capabilities`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

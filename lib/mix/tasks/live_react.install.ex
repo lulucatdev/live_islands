@@ -19,13 +19,13 @@ defmodule Mix.Tasks.LiveReact.Install do
 
   @impl Mix.Task
   def run(_args) do
-    LiveReact.Installer.install()
+    LiveIslands.Installer.install()
 
     Mix.shell().info("""
 
-    LiveReact installation files are in place.
+    LiveReact compatibility installation files are in place through LiveIslands.
 
-    Review the generated assets and ensure `import LiveReact` is present in
+    Review the generated assets and ensure `import LiveIslands` is present in
     your web module's `html_helpers/0`. Then run:
 
         npm install --prefix assets

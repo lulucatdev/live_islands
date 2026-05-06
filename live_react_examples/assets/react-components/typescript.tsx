@@ -1,5 +1,5 @@
 import React from "react";
-import type { LiveProps } from "live_react";
+import type { LiveProps } from "live_islands/react";
 
 function MyButton({ title }: { title: string }) {
   return (

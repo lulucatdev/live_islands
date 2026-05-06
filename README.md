@@ -1,62 +1,71 @@
-[![Github CI](https://github.com/mrdotb/live_react/workflows/Tests/badge.svg)](https://github.com/mrdotb/live_react/actions)
-[![Hex.pm](https://img.shields.io/hexpm/v/live_react.svg)](https://hex.pm/packages/live_react)
-[![Hexdocs.pm](https://img.shields.io/badge/docs-hexdocs.pm-purple)](https://hexdocs.pm/live_react)
-[![GitHub](https://img.shields.io/github/stars/mrdotb/live_react?style=social)](https://github.com/mrdotb/live_react)
+# LiveIslands
 
-# LiveReact
+React and Vue component islands inside Phoenix LiveView.
 
-React inside Phoenix LiveView.
-
-![logo](https://github.com/mrdotb/live_react/blob/main/logo.svg?raw=true)
+LiveIslands is the maintained fork of `live_react` that is being refactored into a framework-neutral island layer. The package keeps the existing React integration available while adding a Vue adapter based on the `live_vue` capability model.
 
 ## Features
 
-- **End-To-End Reactivity** with LiveView
-- **Server-Side Rendered** (SSR) React
-- **Efficient Props Diffing** over the LiveView WebSocket
-- **Phoenix Streams** support with efficient patches
-- **Tailwind** support
-- **Dead View** support
-- **Lazy-loading** React components
-- **Slot** interoperability
-- **Link Component** for LiveView navigation
-- **React hooks** for LiveView events, event replies, navigation, connection state, forms, and uploads
-- **Vite** development workflow
+- React and Vue component entrypoints: `LiveIslands.react/1` and `LiveIslands.vue/1`
+- Shared prop encoding, compact patch serialization, LiveStream patches, and event handler metadata
+- React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
+- Vue composables ported from LiveVue, including events, navigation, forms, uploads, connection state, and slot injection
+- Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
+- Compatibility modules for existing `LiveReact` usage during migration
 
-## Resources
+## Package Exports
 
-- [Demo](https://live-react-examples.fly.dev/simple)
-- [HexDocs](https://hexdocs.pm/live_react)
-- [HexPackage](https://hex.pm/packages/live_react)
-- [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view)
-- [Installation](/guides/installation.md)
-- [Deployment](/guides/deployment.md)
-- [Development](/guides/development.md)
-- [SSR](/guides/ssr.md)
+```js
+import { getHooks } from "live_islands/react";
+import { getHooks as getVueHooks, createLiveVue } from "live_islands/vue";
+import { getIslandHooks } from "live_islands";
+```
 
-## Example
+The root export can combine both frameworks:
 
-Visit the [demo website](https://live-react-examples.fly.dev/simple) to see examples of what you can do with LiveReact.
+```js
+const hooks = getIslandHooks({
+  react: reactComponents,
+  vue: createLiveVue({ resolve: vueResolver }),
+});
+```
 
-You can also check out the [PhoenixAnalytics project](https://github.com/lalabuy948/PhoenixAnalytics) for a real-world example.
+## Phoenix Usage
 
-## Why LiveReact
+```elixir
+def html_helpers do
+  quote do
+    import LiveIslands
+  end
+end
+```
 
-Phoenix LiveView enables rich, real-time user experiences with server-rendered HTML.
-It works by communicating any state changes through a websocket and updating the DOM in realtime.
-You can get a really good user experience without ever needing to write any client side code.
+```heex
+<.react name="DashboardCard" title={@title} />
 
-LiveReact builds on top of Phoenix LiveView to allow for easy client side state management while still allowing for communication over the websocket.
+<.vue v-component="UserPanel" user={@user} v-on:save={JS.push("save")} />
+```
 
-## Installation
+## Install
 
-see [Installation](/guides/installation.md)
+```elixir
+def deps do
+  [
+    {:live_islands, git: "https://github.com/lulucatdev/live_islands"}
+  ]
+end
+```
+
+```bash
+mix deps.get
+mix live_islands.install
+```
+
+The legacy `LiveReact` modules remain in this fork so existing React code can migrate incrementally.
 
 ## Credits
 
-I was inspired by the following libraries:
+LiveIslands builds on the work from:
 
-- [LiveVue](https://github.com/Valian/live_vue)
-- [LiveSvelte](https://github.com/woutdp/live_svelte)
-
-I had a need for a similar library for React, so I created LiveReact.
+- [mrdotb/live_react](https://github.com/mrdotb/live_react)
+- [Valian/live_vue](https://github.com/Valian/live_vue)

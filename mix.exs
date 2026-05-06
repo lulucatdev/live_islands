@@ -1,18 +1,18 @@
-defmodule LiveReact.MixProject do
+defmodule LiveIslands.MixProject do
   use Mix.Project
 
-  @source_url "https://github.com/mrdotb/live_react"
-  @version "1.1.0"
+  @source_url "https://github.com/lulucatdev/live_islands"
+  @version "0.1.0"
 
   def project do
     [
-      app: :live_react,
+      app: :live_islands,
       version: @version,
       consolidate_protocols: Mix.env() != :test,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "E2E reactivity for React and LiveView",
+      description: "E2E React and Vue component islands for Phoenix LiveView",
       package: package(),
       docs: docs(),
       source_url: @source_url
@@ -22,9 +22,9 @@ defmodule LiveReact.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     conditionals =
-      case Application.get_env(:live_react, :ssr_module) do
+      case Application.get_env(:live_islands, :ssr_module) do
         # Needed to use :httpc.request
-        LiveReact.SSR.ViteJS -> [:inets]
+        LiveIslands.SSR.ViteJS -> [:inets]
         _ -> []
       end
 
@@ -54,10 +54,10 @@ defmodule LiveReact.MixProject do
 
   defp package do
     [
-      maintainers: ["Baptiste Chaleil"],
+      maintainers: ["LiveIslands maintainers"],
       licenses: ["MIT"],
       links: %{
-        Github: "https://github.com/mrdotb/live_react"
+        Github: @source_url
       },
       files:
         ~w(assets/copy assets/js lib)s ++
@@ -67,10 +67,10 @@ defmodule LiveReact.MixProject do
 
   defp docs do
     [
-      name: "LiveReact",
+      name: "LiveIslands",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/mrdotb/live_react",
-      homepage_url: "https://github.com/mrdotb/live_react",
+      source_url: @source_url,
+      homepage_url: @source_url,
       main: "readme",
       extras: [
         "README.md",

@@ -51,9 +51,9 @@ defmodule LiveReactExamples.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       # For development
-      {:live_react, path: ".."}
+      {:live_islands, path: ".."}
       # For deployment
-      # {:live_react, "~> 1.0.0"}
+      # {:live_islands, "~> 0.1.0"}
     ]
   end
 

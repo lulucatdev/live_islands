@@ -9,7 +9,7 @@ import Config
 config :live_react_examples, LiveReactExamplesWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -43,7 +43,7 @@ config :live_react_examples, LiveReactExamplesWeb.Endpoint,
 
 # Watch static and templates for browser reloading.
 config :live_react_examples, LiveReactExamplesWeb.Endpoint,
-  reloadable_appps: [:live_react, :live_react_examples_web, :live_react_examples],
+  reloadable_appps: [:live_islands, :live_react_examples_web, :live_react_examples],
   live_reload: [
     notify: [
       live_views: [
@@ -57,9 +57,9 @@ config :live_react_examples, LiveReactExamplesWeb.Endpoint,
     ]
   ]
 
-config :live_react,
-  vite_host: "http://localhost:5173",
-  ssr_module: LiveReact.SSR.ViteJS,
+config :live_islands,
+  vite_host: System.get_env("VITE_HOST") || "http://localhost:5173",
+  ssr_module: LiveIslands.SSR.ViteJS,
   ssr: true
 
 # Enable dev routes for dashboard and mailbox

@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("LiveReact advanced hooks work through LiveView", async ({ page }) => {
+test("LiveIslands React and Vue hooks work through LiveView", async ({
+  page,
+}) => {
   await page.goto("/capabilities");
 
   const streamItems = page.getByTestId("stream-list").locator("li");
@@ -26,4 +28,10 @@ test("LiveReact advanced hooks work through LiveView", async ({ page }) => {
   await expect(page.getByTestId("selected-file")).toHaveText("hello.txt");
   await page.getByTestId("upload-submit").click();
   await expect(page.getByTestId("uploaded-files")).toContainText("hello.txt");
+
+  await expect(page.getByTestId("vue-message")).toHaveText("Vue island ready");
+  await page.getByTestId("vue-ping").click();
+  await expect(page.getByTestId("vue-message")).toHaveText(
+    "Vue replied from vue",
+  );
 });

@@ -86,7 +86,7 @@ defmodule LiveReactExamplesWeb do
       # Core UI components and translation
       import LiveReactExamplesWeb.CoreComponents
 
-      import LiveReact
+      import LiveIslands
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
