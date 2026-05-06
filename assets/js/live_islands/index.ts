@@ -8,6 +8,8 @@ export {
   createIslandPrefetcher,
   definePrefetchStrategy,
   getIslandManifest,
+  getIslandScope,
+  getPageIslandManifest,
   setupIslandPrefetch,
 } from "./prefetch.js";
 export { createReactIsland } from "./react/app.js";
@@ -47,7 +49,12 @@ export function getIslandHooks({
 }: {
   react?: any;
   vue?: any;
-  prefetch?: boolean | { defaultPolicy?: string };
+  prefetch?:
+    | boolean
+    | {
+        defaultPolicy?: string;
+        scope?: "page" | "document" | string | Element;
+      };
 } = {}) {
   if (prefetch && typeof window !== "undefined") {
     const current = (window as any).__liveIslandsPrefetch;

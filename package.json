@@ -1,6 +1,6 @@
 {
   "name": "live_islands",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Astro-style React and Vue component islands for Phoenix LiveView",
   "license": "MIT",
   "module": "./assets/js/live_islands/index.ts",

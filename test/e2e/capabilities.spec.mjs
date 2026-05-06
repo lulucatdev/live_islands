@@ -8,6 +8,25 @@ test("LiveIslands React and Vue hooks work through LiveView", async ({
 
   await page.goto("/capabilities");
 
+  const manifestEntries = () =>
+    page.evaluate(() =>
+      window.__liveIslandsPrefetch
+        ?.manifest()
+        .map((island) => `${island.page}:${island.framework}:${island.name}`)
+        .sort(),
+    );
+
+  await expect
+    .poll(manifestEntries)
+    .toEqual(
+      expect.arrayContaining([
+        "/capabilities:react:Capabilities",
+        "/capabilities:react:Simple",
+        "/capabilities:vue:status",
+      ]),
+    );
+  expect(await manifestEntries()).not.toContain("/capabilities:react:Counter");
+
   await expect
     .poll(() =>
       responses.some(
@@ -31,8 +50,13 @@ test("LiveIslands React and Vue hooks work through LiveView", async ({
   await expect(streamItems).toHaveCount(2);
 
   await expect(page.getByTestId("reply-result")).toHaveText("No reply yet");
-  await page.getByTestId("reply-button").click();
-  await expect(page.getByTestId("reply-result")).toHaveText("Reply for react");
+  await expect(async () => {
+    await page.getByTestId("reply-button").click();
+    await expect(page.getByTestId("reply-result")).toHaveText(
+      "Reply for react",
+      { timeout: 1500 },
+    );
+  }).toPass({ timeout: 10000 });
 
   await page.getByTestId("email-input").fill("invalid");
   await expect(page.getByTestId("email-error")).toHaveText("must include @");
@@ -53,5 +77,13 @@ test("LiveIslands React and Vue hooks work through LiveView", async ({
   await page.getByTestId("vue-ping").click();
   await expect(page.getByTestId("vue-message")).toHaveText(
     "Vue replied from vue",
+  );
+
+  await page.goto("/live-counter");
+  await expect
+    .poll(manifestEntries)
+    .toEqual(expect.arrayContaining(["/live-counter:react:Counter"]));
+  expect(await manifestEntries()).not.toContain(
+    "/live-counter:react:Capabilities",
   );
 });

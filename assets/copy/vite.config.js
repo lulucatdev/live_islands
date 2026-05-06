@@ -49,7 +49,7 @@ export default defineConfig(({ command }) => {
       outDir: "../priv/static/assets", // emit assets to priv/static/assets
       emptyOutDir: true,
       sourcemap: isDev, // enable source map in dev build
-      manifest: false, // do not generate manifest.json
+      manifest: true,
       rollupOptions: {
         input: {
           app: path.resolve(__dirname, "./js/app.js"),

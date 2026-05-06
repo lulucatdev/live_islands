@@ -28,7 +28,7 @@ import "../css/app.css";
 const hooks = getIslandHooks({
   react: reactComponents,
   vue: vueComponents,
-  prefetch: true,
+  prefetch: { scope: "page" },
 });
 
 let csrfToken = document

@@ -24,10 +24,18 @@ defmodule LiveIslandsInstallVerifierTest do
     write!(project_root, "priv/static/assets/app.js", "import('./simple.js')")
     write!(project_root, "priv/static/assets/app.css", ".text-red-700{}")
     write!(project_root, "priv/static/assets/simple.js", "export default {}")
+
+    write!(
+      project_root,
+      "priv/static/assets/.vite/manifest.json",
+      ~s({"js/app.js":{"file":"app.js","isEntry":true},"react-components/simple.jsx":{"file":"simple.js","isDynamicEntry":true}})
+    )
+
     write!(project_root, "priv/island-components/server.js", "export function render() {}")
     write!(project_root, "priv/island-components/package.json", ~s({"type":"module"}))
 
     assert {:ok, checks} = InstallVerifier.verify(project_root, artifacts: true)
+    assert Enum.any?(checks, &(&1.name == "Vite manifest" and &1.ok?))
     assert Enum.any?(checks, &(&1.name == "lazy chunk artifacts" and &1.ok?))
     assert Enum.any?(checks, &(&1.name == "SSR build artifacts" and &1.ok?))
   end
@@ -38,6 +46,13 @@ defmodule LiveIslandsInstallVerifierTest do
     write!(project_root, "priv/static/assets/app.js", "import('./simple.js')")
     write!(project_root, "priv/static/assets/app.css", ".text-red-700{}")
     write!(project_root, "priv/static/assets/simple.js", "export default {}")
+
+    write!(
+      project_root,
+      "priv/static/assets/.vite/manifest.json",
+      ~s({"js/app.js":{"file":"app.js","isEntry":true},"react-components/simple.jsx":{"file":"simple.js","isDynamicEntry":true}})
+    )
+
     write!(project_root, "priv/island-components/server.js", "export function render() {}")
     write!(project_root, "priv/island-components/package.json", ~s({"type":"module"}))
 
@@ -53,7 +68,7 @@ defmodule LiveIslandsInstallVerifierTest do
 
     write!(project_root, "mix.exs", """
     defmodule Demo.MixProject do
-      defp deps, do: [{:live_islands, "~> 0.1.0"}]
+      defp deps, do: [{:live_islands, "~> 0.3.0"}]
     end
     """)
 
@@ -80,7 +95,7 @@ defmodule LiveIslandsInstallVerifierTest do
     import vue from "@vitejs/plugin-vue";
     import tailwindcss from "@tailwindcss/vite";
     import liveIslandsPlugin from "live_islands/vite-plugin";
-    export default { plugins: [react(), vue(), liveIslandsPlugin(), tailwindcss()] };
+    export default { plugins: [react(), vue(), liveIslandsPlugin(), tailwindcss()], build: { manifest: true } };
     """)
 
     write!(project_root, "assets/css/app.css", """

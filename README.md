@@ -13,7 +13,8 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
 - Vue composables for events, navigation, forms, uploads, connection state, and slot injection
 - Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
-- Page-aware island manifest and `prefetch={...}` policies for component chunks
+- Page-scoped island manifest and `prefetch={...}` policies for component chunks
+- Vite manifest verification for lazy island chunks in production builds
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
 
@@ -30,6 +31,7 @@ import {
   definePrefetchStrategy,
   getIslandHooks,
   getIslandManifest,
+  getPageIslandManifest,
 } from "live_islands";
 ```
 
@@ -44,7 +46,7 @@ const hooks = getIslandHooks({
     resolve: (name) => modules[`./react-components/${name}.jsx`]?.(),
   }),
   vue: createVueIsland({ resolve: vueResolver }),
-  prefetch: true,
+  prefetch: { scope: "page" },
 });
 ```
 

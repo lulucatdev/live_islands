@@ -22,10 +22,10 @@ LiveIslands requires these project-level integration points.
   - `react`
   - `react-dom`
   - `vue`
-- Ensure `assets/vite.config.*` includes Tailwind, React, Vue, and `live_islands/vite-plugin`.
+- Ensure `assets/vite.config.*` includes Tailwind, React, Vue, `live_islands/vite-plugin`, and `build.manifest: true`.
 - If Phoenix colocated hooks are imported from `phoenix-colocated/<app>`, add a Vite alias to `_build/${MIX_ENV || "dev"}/phoenix-colocated`.
 - Ensure `assets/js/app.js` imports `getIslandHooks`, React components, and Vue components, then combines them with any existing hooks.
-- Enable `getIslandHooks({ react, vue, prefetch: true })` when the app wants page-aware island chunk prefetching.
+- Enable `getIslandHooks({ react, vue, prefetch: { scope: "page" } })` when the app wants page-scoped island chunk prefetching.
 - Prefer async React/Vue component registries so Vite can split page-specific island chunks.
 - Ensure `assets/js/server.js` can dispatch SSR to both React and Vue renderers.
 - Ensure `assets/react-components/index.{js,jsx,ts,tsx}` and `assets/vue-components/index.{js,ts}` exist.
@@ -67,6 +67,8 @@ LiveIslands can preload island component chunks without hydrating the island:
 - `prefetch={:interaction}` preloads on pointer, touch, or focus intent.
 - `prefetch={{:media, "(min-width: 1024px)"}}` preloads when a media query matches.
 - `prefetch={:none}` disables prefetch. This is the default.
+
+The runtime prefetch controller is page-scoped by default. Use `getPageIslandManifest()` in browser tests to confirm a page only exposes the islands rendered by the current LiveView or route.
 
 ## Server-Only Islands
 

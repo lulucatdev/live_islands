@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.3.0
+
+Route-scoped island loading and production manifest verification.
+
+- Added page-scoped island manifest APIs with `getIslandScope`, `getIslandManifest({ scope: "page" })`, and `getPageIslandManifest`.
+- Made the prefetch controller page-scoped by default, so LiveView navigation scans the current page boundary instead of the whole document.
+- Enabled Vite build manifest output in the example and install templates.
+- Extended the install verifier to check Vite manifest configuration and dynamic island chunk entries.
+- Tightened E2E coverage for page-scoped manifests, server-only islands, LiveView interactions, SSR, and route navigation.
+
 ## v0.2.0
 
 Astro-style loading and runtime ergonomics for page-aware islands.

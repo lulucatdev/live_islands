@@ -6,7 +6,7 @@ Run the static verifier first:
 mix live_islands.verify_install
 ```
 
-Then run the full frontend verifier. It runs the Vite client build, the SSR bundle build, and checks that Vite emitted JavaScript, CSS, and lazy island chunks:
+Then run the full frontend verifier. It runs the Vite client build, the SSR bundle build, and checks that Vite emitted JavaScript, CSS, the Vite manifest, and lazy island chunks:
 
 ```bash
 mix live_islands.verify_install --full
@@ -34,4 +34,4 @@ For a browser smoke test, render one React island and one Vue island in a page o
 <.vue v-component="status" message="Vue island ready" />
 ```
 
-Use Playwright or the in-app browser to confirm both islands mount and respond to a simple interaction.
+Use Playwright or the in-app browser to confirm both islands mount and respond to a simple interaction. When page-scoped prefetch is enabled, also inspect `window.__liveIslandsPrefetch.manifest()` and confirm it only lists the islands on the current page.

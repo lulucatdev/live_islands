@@ -72,6 +72,9 @@ export default defineConfig(({ command }) => {
   return {
     base: isDev ? undefined : "/assets",
     plugins: [react(), vue(), liveIslandsPlugin()],
+    build: {
+      manifest: true,
+    },
     resolve: {
       alias: {
         "phoenix-colocated": path.resolve(
@@ -94,7 +97,7 @@ import vueComponents from "../vue-components";
 const islandHooks = getIslandHooks({
   react: reactComponents,
   vue: vueComponents,
-  prefetch: true,
+  prefetch: { scope: "page" },
 });
 
 const liveSocket = new LiveSocket("/live", Socket, {

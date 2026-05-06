@@ -46,6 +46,7 @@ defmodule LiveIslands.InstallVerifier do
       mix_dependency(project_root),
       package_dependencies(project_root),
       vite_config(project_root),
+      vite_manifest_config(project_root),
       tailwind_css(project_root),
       app_js_hooks(project_root),
       component_roots(project_root),
@@ -112,6 +113,36 @@ defmodule LiveIslands.InstallVerifier do
       ["live_islands/vite-plugin", "@vitejs/plugin-react", "@vitejs/plugin-vue", "tailwindcss"],
       "Vite config includes LiveIslands, Tailwind, React, and Vue plugins"
     )
+  end
+
+  defp vite_manifest_config(project_root) do
+    path =
+      find_first(project_root, [
+        "assets/vite.config.js",
+        "assets/vite.config.mjs",
+        "assets/vite.config.ts"
+      ])
+
+    case path && read_file(path) do
+      {:ok, content} ->
+        manifest? =
+          Regex.match?(~r/manifest:\s*(true|["'][^"']+["'])/, content)
+
+        check(
+          "Vite manifest config",
+          manifest?,
+          if(manifest?,
+            do: "Vite client build is configured to emit manifest.json",
+            else: "assets/vite.config.* should set build.manifest: true"
+          )
+        )
+
+      {:error, reason} ->
+        check("Vite manifest config", false, "cannot read Vite config: #{reason}")
+
+      nil ->
+        check("Vite manifest config", false, "file is missing")
+    end
   end
 
   defp tailwind_css(project_root) do
@@ -287,6 +318,7 @@ defmodule LiveIslands.InstallVerifier do
 
     [
       vite_build_artifacts(project_root),
+      vite_manifest_artifacts(project_root),
       lazy_chunk_artifacts(project_root),
       ssr_build_artifacts(project_root, skip_ssr?)
     ]
@@ -305,6 +337,41 @@ defmodule LiveIslands.InstallVerifier do
         else: "run npm run build --prefix assets and confirm JavaScript and CSS are emitted"
       )
     )
+  end
+
+  defp vite_manifest_artifacts(project_root) do
+    path = Path.join([project_root, "priv", "static", "assets", ".vite", "manifest.json"])
+
+    with {:ok, content} <- read_file(path),
+         {:ok, manifest} <- Jason.decode(content) do
+      dynamic_entries =
+        manifest
+        |> Map.values()
+        |> Enum.filter(&Map.get(&1, "isDynamicEntry"))
+
+      check(
+        "Vite manifest",
+        dynamic_entries != [],
+        if(dynamic_entries != [],
+          do: "Vite manifest maps #{length(dynamic_entries)} dynamic island chunk(s)",
+          else: "Vite manifest exists but does not include dynamic island chunks"
+        )
+      )
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        check(
+          "Vite manifest",
+          false,
+          "priv/static/assets/.vite/manifest.json is invalid JSON: #{error.data}"
+        )
+
+      {:error, reason} ->
+        check(
+          "Vite manifest",
+          false,
+          "run npm run build --prefix assets and confirm priv/static/assets/.vite/manifest.json exists: #{reason}"
+        )
+    end
   end
 
   defp lazy_chunk_artifacts(project_root) do

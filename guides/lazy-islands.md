@@ -44,7 +44,7 @@ Enable the page-aware prefetch runtime next to your hooks:
 const hooks = getIslandHooks({
   react: reactComponents,
   vue: vueComponents,
-  prefetch: true,
+  prefetch: { scope: "page" },
 });
 ```
 
@@ -59,6 +59,16 @@ Then annotate islands with `prefetch`:
 Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `:interaction`, `{:media, query}`, and `:none`.
 
 The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early.
+
+You can inspect the page-scoped manifest in application code or browser tests:
+
+```js
+import { getPageIslandManifest } from "live_islands";
+
+console.table(getPageIslandManifest());
+```
+
+Use `getIslandManifest({ scope: "document" })` when you deliberately want to inspect every island in the document. The prefetch controller uses `scope: "page"` by default and rescans after LiveView navigation.
 
 Custom prefetch strategies use the same shape:
 
@@ -109,6 +119,8 @@ Run the full installer verifier after wiring async registries. It checks that th
 ```bash
 mix live_islands.verify_install --full
 ```
+
+For production builds, set `build.manifest: true` in `assets/vite.config.*`. The verifier checks `priv/static/assets/.vite/manifest.json` and confirms that Vite recorded dynamic island chunk entries.
 
 ## LiveView Pages
 

@@ -3,6 +3,7 @@ import { normalizeReactIslandApp } from "./react/app.js";
 import { normalizeVueIslandApp } from "./vue/app.js";
 
 const ISLAND_SELECTOR = "[data-framework][data-name]";
+const PAGE_SCOPE_SELECTOR = "[data-live-islands-page], [data-phx-main]";
 const PREFETCHED = new Set();
 
 const onIdle = (callback) => {
@@ -142,6 +143,11 @@ const normalizePolicy = (policy, defaultPolicy = "none") => {
   }
 };
 
+const truthyAttr = (el, name) => {
+  const value = el.getAttribute(name);
+  return value != null && value !== "false";
+};
+
 const islandElements = (root = document) => {
   const elements = [];
 
@@ -152,6 +158,68 @@ const islandElements = (root = document) => {
   return elements;
 };
 
+const isDomRoot = (value) =>
+  value &&
+  (typeof value.querySelectorAll === "function" ||
+    typeof value.matches === "function" ||
+    value.nodeType === 9);
+
+const documentFor = (root) =>
+  root?.nodeType === 9 ? root : root?.ownerDocument || document;
+
+const normalizeManifestArgs = (rootOrOptions, maybeOptions) => {
+  if (isDomRoot(rootOrOptions) || rootOrOptions == null) {
+    return {
+      root: rootOrOptions || document,
+      options: maybeOptions || {},
+    };
+  }
+
+  return {
+    root: document,
+    options: rootOrOptions || {},
+  };
+};
+
+const findPageScopeRoot = (root = document) => {
+  const doc = documentFor(root);
+
+  if (root.matches?.(PAGE_SCOPE_SELECTOR)) return root;
+
+  const closest = root.closest?.(PAGE_SCOPE_SELECTOR);
+  if (closest) return closest;
+
+  return doc.querySelector(PAGE_SCOPE_SELECTOR) || root;
+};
+
+const resolveScopeRoot = (root = document, scope = "page") => {
+  if (!scope || scope === "document") return root;
+  if (scope === "page") return findPageScopeRoot(root);
+  if (isDomRoot(scope)) return scope;
+
+  if (typeof scope === "string") {
+    return documentFor(root).querySelector(scope) || root;
+  }
+
+  return root;
+};
+
+export function getIslandScope(root = document, options = {}) {
+  const scope = options.scope || "page";
+  const scopeRoot = resolveScopeRoot(root, scope);
+  const doc = documentFor(scopeRoot);
+  const location = doc.defaultView?.location;
+
+  return {
+    root: scopeRoot,
+    type: scope,
+    page:
+      scopeRoot.getAttribute?.("data-live-islands-page") ||
+      (location ? `${location.pathname}${location.search}` : "document"),
+    id: scopeRoot.id || null,
+  };
+}
+
 const normalizeApp = (framework, app) => {
   if (!app) return null;
   return framework === "react"
@@ -159,10 +227,12 @@ const normalizeApp = (framework, app) => {
     : normalizeVueIslandApp(app);
 };
 
-export function getIslandManifest(root = document) {
+export function getIslandManifest(rootOrOptions = document, maybeOptions = {}) {
+  const { root, options } = normalizeManifestArgs(rootOrOptions, maybeOptions);
+  const scope = getIslandScope(root, options);
   const seen = new Set();
 
-  return islandElements(root).flatMap((el) => {
+  return islandElements(scope.root).flatMap((el) => {
     const framework = el.getAttribute("data-framework");
     const name = el.getAttribute("data-name");
     if (!framework || !name) return [];
@@ -176,6 +246,8 @@ export function getIslandManifest(root = document) {
         framework,
         name,
         id: el.id || null,
+        page: scope.page,
+        scopeId: scope.id,
         client: el.getAttribute("data-client") || "load",
         prefetch: el.getAttribute("data-prefetch") || "none",
         prefetchMedia:
@@ -183,9 +255,14 @@ export function getIslandManifest(root = document) {
           el.getAttribute("data-client-media") ||
           null,
         ssr: el.getAttribute("data-ssr") === "true",
+        serverOnly: truthyAttr(el, "data-server-only"),
       },
     ];
   });
+}
+
+export function getPageIslandManifest(root = document) {
+  return getIslandManifest(root, { scope: "page" });
 }
 
 export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
@@ -194,6 +271,7 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     vue: normalizeApp("vue", vue),
   };
   const defaultPolicy = options.defaultPolicy || "none";
+  const scope = options.scope || "page";
   const scheduled = new WeakMap();
   const cleanups = new Set();
 
@@ -241,7 +319,7 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
   };
 
   const scan = (root = document) => {
-    islandElements(root).forEach(schedule);
+    islandElements(resolveScopeRoot(root, scope)).forEach(schedule);
   };
 
   const listen = (event, callback) => {
@@ -275,7 +353,9 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
   };
 
   return {
-    manifest: getIslandManifest,
+    manifest: (root = document, manifestOptions = {}) =>
+      getIslandManifest(root, { scope, ...manifestOptions }),
+    pageManifest: getPageIslandManifest,
     scan,
     start,
     destroy,
