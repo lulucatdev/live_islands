@@ -17,6 +17,13 @@ test("LiveIslands React and Vue hooks work through LiveView", async ({
       ),
     )
     .toBe(true);
+  await expect(page.locator("#server-only-react")).toContainText(
+    "Hello world!",
+  );
+  await expect(page.locator("#server-only-react")).not.toHaveAttribute(
+    "phx-hook",
+    /.+/,
+  );
 
   const streamItems = page.getByTestId("stream-list").locator("li");
   await expect(streamItems).toHaveCount(1);

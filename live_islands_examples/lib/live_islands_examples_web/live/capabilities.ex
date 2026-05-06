@@ -26,6 +26,7 @@ defmodule LiveIslandsExamplesWeb.LiveCapabilities do
         client={:none}
         prefetch={:load}
       />
+      <.react_server id="server-only-react" class="hidden" name="Simple" />
       <.vue
         id="vue-capabilities"
         v-component="status"

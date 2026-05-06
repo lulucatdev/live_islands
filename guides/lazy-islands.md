@@ -8,7 +8,8 @@ The page still arrives as LiveView-rendered HTML. Each island then decides when 
 <.react name="Chart" client={:visible} ssr={true} />
 <.vue v-component="Filters" client={:idle} v-ssr={true} />
 <.react name="WideMap" client={{:media, "(min-width: 1024px)"}} />
-<.react name="StaticCard" client={:none} ssr={true} />
+<.react name="Details" client={:interaction} />
+<.react_server name="StaticCard" />
 ```
 
 ## Client Strategies
@@ -16,10 +17,22 @@ The page still arrives as LiveView-rendered HTML. Each island then decides when 
 - `:load` hydrates as soon as the LiveView hook mounts. This is the default.
 - `:idle` waits for `requestIdleCallback`, with a timeout fallback.
 - `:visible` waits until the island enters the viewport.
+- `:interaction` waits for pointer, touch, or focus intent.
 - `{:media, query}` waits until `window.matchMedia(query)` matches.
 - `:none` never hydrates. Use this only with SSR when you want static HTML.
 
 These strategies are per-island, so a page can hydrate a small navigation island immediately and defer a heavy chart until it is visible.
+
+Custom client strategies can be registered in JavaScript and referenced from Elixir with `client={{:custom, "name"}}`:
+
+```js
+import { defineClientStrategy } from "live_islands";
+
+defineClientStrategy("after-transition", (el, hydrate) => {
+  el.addEventListener("transitionend", hydrate, { once: true });
+  return () => el.removeEventListener("transitionend", hydrate);
+});
+```
 
 ## Page-Aware Prefetch
 
@@ -43,9 +56,19 @@ Then annotate islands with `prefetch`:
 <.react name="WideMap" client={:visible} prefetch={{:media, "(min-width: 1024px)"}} />
 ```
 
-Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `{:media, query}`, and `:none`.
+Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `:interaction`, `{:media, query}`, and `:none`.
 
 The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early.
+
+Custom prefetch strategies use the same shape:
+
+```js
+import { definePrefetchStrategy } from "live_islands";
+
+definePrefetchStrategy("after-search-open", (el, preload) => {
+  window.addEventListener("search:open", () => preload(el), { once: true });
+});
+```
 
 ## Async Component Registries
 
@@ -103,6 +126,17 @@ This keeps the architecture close to Astro:
 SSR and lazy hydration work together. When `ssr={true}` or `v-ssr={true}`, LiveIslands can render initial HTML on the server and hydrate it later according to the `client` strategy.
 
 Use `client={:none}` only when the server-rendered island should stay static.
+
+## Server-Only Islands
+
+Use `<.react_server>` and `<.vue_server>` when a component should render through SSR but never hydrate:
+
+```heex
+<.react_server name="MarketingCard" title={@title} />
+<.vue_server v-component="LegalNotice" body={@body} />
+```
+
+Server-only islands do not attach a LiveView hook and do not use `phx-update="ignore"`, so LiveView can replace their HTML on future renders. This is closer to Nuxt/Astro server islands than to a `client={:none}` hydrated island shell.
 
 ## Diagnostics
 

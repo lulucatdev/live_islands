@@ -52,7 +52,7 @@ const onMedia = (query, callback) => {
   return () => media.removeEventListener("change", listener);
 };
 
-const once = (el, events, callback) => {
+const onEvents = (el, events, callback) => {
   const done = () => {
     events.forEach((event) => el.removeEventListener(event, done));
     callback();
@@ -61,6 +61,57 @@ const once = (el, events, callback) => {
   events.forEach((event) => el.addEventListener(event, done, { once: true }));
   return () => events.forEach((event) => el.removeEventListener(event, done));
 };
+
+const prefetchStrategies = new Map([
+  ["none", () => () => {}],
+  [
+    "load",
+    (el, preload) => {
+      preload(el);
+      return () => {};
+    },
+  ],
+  ["idle", (el, preload) => onIdle(() => preload(el))],
+  ["visible", (el, preload) => onVisible(el, () => preload(el))],
+  [
+    "hover",
+    (el, preload) =>
+      onEvents(el, ["pointerenter", "focusin"], () => preload(el)),
+  ],
+  [
+    "tap",
+    (el, preload) =>
+      onEvents(el, ["pointerdown", "touchstart"], () => preload(el)),
+  ],
+  [
+    "interaction",
+    (el, preload) =>
+      onEvents(
+        el,
+        ["pointerenter", "pointerdown", "focusin", "touchstart"],
+        () => preload(el),
+      ),
+  ],
+  [
+    "media",
+    (el, preload) =>
+      onMedia(
+        el.getAttribute("data-prefetch-media") ||
+          el.getAttribute("data-client-media"),
+        () => preload(el),
+      ),
+  ],
+]);
+
+export function definePrefetchStrategy(name, schedule) {
+  if (!name || typeof schedule !== "function") {
+    throw new Error(
+      "[LiveIslands] definePrefetchStrategy requires a name and scheduler function.",
+    );
+  }
+
+  prefetchStrategies.set(name, schedule);
+}
 
 const normalizePolicy = (policy, defaultPolicy = "none") => {
   switch (policy || defaultPolicy) {
@@ -82,10 +133,12 @@ const normalizePolicy = (policy, defaultPolicy = "none") => {
       return "hover";
     case "tap":
       return "tap";
+    case "interaction":
+      return "interaction";
     case "media":
       return "media";
     default:
-      return "unknown";
+      return policy || defaultPolicy;
   }
 };
 
@@ -170,43 +223,17 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
       el.getAttribute("data-prefetch"),
       defaultPolicy,
     );
-    let cancel;
+    const scheduler = prefetchStrategies.get(policy);
+    let cancel = () => {};
 
-    switch (policy) {
-      case "none":
-        cancel = () => {};
-        break;
-      case "load":
-        preload(el);
-        cancel = () => {};
-        break;
-      case "idle":
-        cancel = onIdle(() => preload(el));
-        break;
-      case "visible":
-        cancel = onVisible(el, () => preload(el));
-        break;
-      case "hover":
-        cancel = once(el, ["pointerenter", "focusin"], () => preload(el));
-        break;
-      case "tap":
-        cancel = once(el, ["pointerdown", "touchstart"], () => preload(el));
-        break;
-      case "media":
-        cancel = onMedia(
-          el.getAttribute("data-prefetch-media") ||
-            el.getAttribute("data-client-media"),
-          () => preload(el),
-        );
-        break;
-      default:
-        warnLiveIslands(
-          `${describeIslandElement(el)} uses unknown prefetch policy "${el.getAttribute(
-            "data-prefetch",
-          )}".`,
-        );
-        cancel = () => {};
-        break;
+    if (scheduler) {
+      cancel = scheduler(el, preload) || cancel;
+    } else {
+      warnLiveIslands(
+        `${describeIslandElement(el)} uses unknown prefetch policy "${el.getAttribute(
+          "data-prefetch",
+        )}".`,
+      );
     }
 
     scheduled.set(el, cancel);

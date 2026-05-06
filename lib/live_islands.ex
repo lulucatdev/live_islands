@@ -16,7 +16,7 @@ defmodule LiveIslands do
   alias Phoenix.LiveView
   alias Phoenix.LiveView.LiveStream
 
-  @react_special_keys ~w(id class ssr diff name socket client client_media prefetch prefetch_media __changed__ __given__)a
+  @react_special_keys ~w(id class ssr diff name socket client client_media prefetch prefetch_media server_only __changed__ __given__)a
   @vue_special_keys [
     :id,
     :class,
@@ -24,6 +24,7 @@ defmodule LiveIslands do
     :client_media,
     :prefetch,
     :prefetch_media,
+    :server_only,
     :"v-ssr",
     :"v-diff",
     :"v-component",
@@ -79,6 +80,22 @@ defmodule LiveIslands do
   end
 
   @doc """
+  Renders a server-only React island.
+
+  Server-only islands render through the configured SSR adapter, do not attach a
+  LiveView hook, and do not ship island JavaScript. LiveView may replace their
+  HTML on later renders because they do not use `phx-update="ignore"`.
+  """
+  def react_server(assigns) do
+    assigns
+    |> Map.put(:server_only, true)
+    |> Map.put(:ssr, true)
+    |> Map.put(:client, :none)
+    |> Map.put(:prefetch, :none)
+    |> react()
+  end
+
+  @doc """
   Renders a Vue island.
 
   Vue-specific attributes use the `v-*` convention:
@@ -110,6 +127,22 @@ defmodule LiveIslands do
     })
   end
 
+  @doc """
+  Renders a server-only Vue island.
+
+  Server-only islands render through the configured SSR adapter, do not attach a
+  LiveView hook, and do not ship island JavaScript. LiveView may replace their
+  HTML on later renders because they do not use `phx-update="ignore"`.
+  """
+  def vue_server(assigns) do
+    assigns
+    |> Map.put(:server_only, true)
+    |> Map.put(:"v-ssr", true)
+    |> Map.put(:client, :none)
+    |> Map.put(:prefetch, :none)
+    |> vue()
+  end
+
   defp render_island(assigns, config) do
     init = Map.get(assigns, :__changed__) == nil
     socket = Map.get(assigns, config.socket_key)
@@ -117,11 +150,13 @@ defmodule LiveIslands do
     use_diff = Map.get(assigns, config.diff_key, diff_default())
     use_streams_diff = Enum.any?(assigns, fn {_key, value} -> match?(%LiveStream{}, value) end)
     component_name = Map.get(assigns, config.component_key)
+    server_only? = Map.get(assigns, :server_only, false)
     {client, client_media} = client_config(assigns, config)
     {prefetch, prefetch_media} = prefetch_config(assigns, config)
 
     render_ssr? =
-      init and dead and Map.get(assigns, config.ssr_key, ssr_default()) and component_name
+      (server_only? or (init and dead)) and
+        Map.get(assigns, config.ssr_key, ssr_default()) and component_name
 
     {inject_target, inject_slot} = inject_config(assigns, config)
 
@@ -145,7 +180,7 @@ defmodule LiveIslands do
       assigns
       |> Map.put_new(:class, nil)
       |> Map.put(:__framework, config.framework)
-      |> Map.put(:__hook, config.hook)
+      |> Map.put(:__hook, if(server_only?, do: nil, else: config.hook))
       |> Map.put(:__component_name, component_name)
       |> validate_component!(config)
       |> then(fn assigns ->
@@ -163,6 +198,7 @@ defmodule LiveIslands do
       |> Map.put(:prefetch_media, prefetch_media)
       |> Map.put(:inject_target, inject_target)
       |> Map.put(:inject_slot, inject_slot)
+      |> Map.put(:server_only?, server_only?)
 
     assigns =
       Map.put(assigns, :ssr_render, if(render_ssr?, do: ssr_render(assigns), else: nil))
@@ -191,7 +227,8 @@ defmodule LiveIslands do
       )
       |> Map.put(:ssr?, is_map(assigns.ssr_render))
       |> Map.put(:hidden_style, if(assigns.inject_target, do: "display:none", else: nil))
-      |> Map.put(:no_format?, config.framework == :vue)
+      |> Map.put(:no_format?, if(server_only?, do: nil, else: config.framework == :vue))
+      |> Map.put(:phx_update, if(server_only?, do: nil, else: "ignore"))
 
     ~H"""
     <div
@@ -209,9 +246,10 @@ defmodule LiveIslands do
       data-prefetch={@prefetch}
       data-prefetch-media={@prefetch_media}
       data-ssr={@ssr?}
+      data-server-only={@server_only?}
       data-inject={@inject_target}
       data-inject-slot={@inject_slot}
-      phx-update="ignore"
+      phx-update={@phx_update}
       phx-hook={@__hook}
       phx-no-format={@no_format?}
       style={@hidden_style}
@@ -262,18 +300,22 @@ defmodule LiveIslands do
   defp normalize_client(:load), do: "load"
   defp normalize_client(:idle), do: "idle"
   defp normalize_client(:visible), do: "visible"
+  defp normalize_client(:interaction), do: "interaction"
   defp normalize_client(:none), do: "none"
   defp normalize_client({:media, query}), do: {:media, query}
   defp normalize_client({"media", query}), do: {:media, query}
+  defp normalize_client({:custom, value}) when is_binary(value), do: value
   defp normalize_client("load"), do: "load"
   defp normalize_client("idle"), do: "idle"
   defp normalize_client("visible"), do: "visible"
+  defp normalize_client("interaction"), do: "interaction"
   defp normalize_client("none"), do: "none"
   defp normalize_client("media"), do: "media"
+  defp normalize_client(value) when is_binary(value), do: value
 
   defp normalize_client(value) do
     raise ArgumentError,
-          "LiveIslands client must be :load, :idle, :visible, :none, {:media, query}, or a matching string; got #{inspect(value)}"
+          "LiveIslands client must be :load, :idle, :visible, :interaction, :none, {:media, query}, {:custom, name}, or a matching string; got #{inspect(value)}"
   end
 
   defp prefetch_config(assigns, config) do
@@ -302,9 +344,11 @@ defmodule LiveIslands do
   defp normalize_prefetch(:viewport), do: "visible"
   defp normalize_prefetch(:hover), do: "hover"
   defp normalize_prefetch(:tap), do: "tap"
+  defp normalize_prefetch(:interaction), do: "interaction"
   defp normalize_prefetch(:none), do: "none"
   defp normalize_prefetch({:media, query}), do: {:media, query}
   defp normalize_prefetch({"media", query}), do: {:media, query}
+  defp normalize_prefetch({:custom, value}) when is_binary(value), do: value
   defp normalize_prefetch("load"), do: "load"
   defp normalize_prefetch("eager"), do: "load"
   defp normalize_prefetch("idle"), do: "idle"
@@ -312,12 +356,14 @@ defmodule LiveIslands do
   defp normalize_prefetch("viewport"), do: "visible"
   defp normalize_prefetch("hover"), do: "hover"
   defp normalize_prefetch("tap"), do: "tap"
+  defp normalize_prefetch("interaction"), do: "interaction"
   defp normalize_prefetch("none"), do: "none"
   defp normalize_prefetch("media"), do: "media"
+  defp normalize_prefetch(value) when is_binary(value), do: value
 
   defp normalize_prefetch(value) do
     raise ArgumentError,
-          "LiveIslands prefetch must be :load, :idle, :visible, :hover, :tap, :none, {:media, query}, or a matching string; got #{inspect(value)}"
+          "LiveIslands prefetch must be :load, :idle, :visible, :hover, :tap, :interaction, :none, {:media, query}, {:custom, name}, or a matching string; got #{inspect(value)}"
   end
 
   defp calculate_props_diff(props, %{__changed__: changed}) do

@@ -12,8 +12,9 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Shared prop encoding, compact patch serialization, LiveStream patches, and event handler metadata
 - React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
 - Vue composables for events, navigation, forms, uploads, connection state, and slot injection
-- Astro-style async islands with `client={:load | :idle | :visible | {:media, query}}`
+- Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
 - Page-aware island manifest and `prefetch={...}` policies for component chunks
+- First-class server-only islands with `<.react_server>` and `<.vue_server>`
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
 
 ## Package Exports
@@ -24,7 +25,12 @@ import {
   getHooks as getReactHooks,
 } from "live_islands/react";
 import { getHooks as getVueHooks, createVueIsland } from "live_islands/vue";
-import { getIslandHooks, getIslandManifest } from "live_islands";
+import {
+  defineClientStrategy,
+  definePrefetchStrategy,
+  getIslandHooks,
+  getIslandManifest,
+} from "live_islands";
 ```
 
 The root export can combine both frameworks:
@@ -56,6 +62,8 @@ end
 <.react name="DashboardCard" title={@title} client={:visible} prefetch={:idle} />
 
 <.vue v-component="UserPanel" client={:visible} prefetch={:hover} user={@user} v-on:save={JS.push("save")} />
+
+<.react_server name="StaticCard" title={@title} />
 ```
 
 ## Install

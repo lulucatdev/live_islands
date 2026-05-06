@@ -86,7 +86,9 @@ defmodule LiveIslands.Test do
       island =
         html
         |> Floki.parse_document!()
-        |> Floki.find("[phx-hook='LiveIslandsReactHook'], [phx-hook='LiveIslandsVueHook']")
+        |> Floki.find(
+          "[phx-hook='LiveIslandsReactHook'], [phx-hook='LiveIslandsVueHook'], [data-framework][data-name]"
+        )
         |> find_component!(opts)
 
       %{
@@ -104,6 +106,9 @@ defmodule LiveIslands.Test do
         prefetch: attr(island, "data-prefetch"),
         prefetch_media: attr(island, "data-prefetch-media"),
         ssr: attr(island, "data-ssr") == "true",
+        server_only: truthy_attr?(island, "data-server-only"),
+        hook: attr(island, "phx-hook"),
+        phx_update: attr(island, "phx-update"),
         class: attr(island, "class")
       }
     else
@@ -169,6 +174,15 @@ defmodule LiveIslands.Test do
     case Floki.attribute(element, name) do
       [value] -> value
       [] -> nil
+    end
+  end
+
+  defp truthy_attr?(element, name) do
+    case attr(element, name) do
+      nil -> false
+      false -> false
+      "false" -> false
+      _ -> true
     end
   end
 end

@@ -57,6 +57,54 @@ const onMedia = (query, callback) => {
   return () => media.removeEventListener("change", listener);
 };
 
+const onInteraction = (el, callback) => {
+  const events = ["pointerenter", "pointerdown", "focusin", "touchstart"];
+
+  const done = () => {
+    events.forEach((event) => el.removeEventListener(event, done));
+    callback();
+  };
+
+  events.forEach((event) => el.addEventListener(event, done, { once: true }));
+  return () => events.forEach((event) => el.removeEventListener(event, done));
+};
+
+const clientStrategies = new Map([
+  ["none", () => () => {}],
+  ["idle", (_el, hydrate) => onIdle(hydrate)],
+  ["visible", (el, hydrate) => onVisible(el, hydrate)],
+  [
+    "media",
+    (el, hydrate) => {
+      if (!el.getAttribute("data-client-media")) {
+        warnLiveIslands(
+          `${describeIslandElement(el)} uses client="media" without data-client-media. Hydrating on idle instead.`,
+        );
+      }
+
+      return onMedia(el.getAttribute("data-client-media"), hydrate);
+    },
+  ],
+  ["interaction", (el, hydrate) => onInteraction(el, hydrate)],
+  [
+    "load",
+    (_el, hydrate) => {
+      hydrate();
+      return () => {};
+    },
+  ],
+]);
+
+export function defineClientStrategy(name, schedule) {
+  if (!name || typeof schedule !== "function") {
+    throw new Error(
+      "[LiveIslands] defineClientStrategy requires a name and scheduler function.",
+    );
+  }
+
+  clientStrategies.set(name, schedule);
+}
+
 export function scheduleHydration(el, callback) {
   const strategy = el.getAttribute("data-client") || "load";
   let cancelled = false;
@@ -65,36 +113,16 @@ export function scheduleHydration(el, callback) {
     if (!cancelled) runAsync(callback);
   };
 
-  let cancel;
-  switch (strategy) {
-    case "none":
-      cancel = () => {};
-      break;
-    case "idle":
-      cancel = onIdle(hydrate);
-      break;
-    case "visible":
-      cancel = onVisible(el, hydrate);
-      break;
-    case "media":
-      if (!el.getAttribute("data-client-media")) {
-        warnLiveIslands(
-          `${describeIslandElement(el)} uses client="media" without data-client-media. Hydrating on idle instead.`,
-        );
-      }
-      cancel = onMedia(el.getAttribute("data-client-media"), hydrate);
-      break;
-    case "load":
-      hydrate();
-      cancel = () => {};
-      break;
-    default:
-      warnLiveIslands(
-        `${describeIslandElement(el)} uses unknown client strategy "${strategy}". Falling back to "load".`,
-      );
-      hydrate();
-      cancel = () => {};
-      break;
+  const scheduler = clientStrategies.get(strategy);
+  let cancel = () => {};
+
+  if (scheduler) {
+    cancel = scheduler(el, hydrate) || cancel;
+  } else {
+    warnLiveIslands(
+      `${describeIslandElement(el)} uses unknown client strategy "${strategy}". Falling back to "load".`,
+    );
+    clientStrategies.get("load")(el, hydrate);
   }
 
   return () => {

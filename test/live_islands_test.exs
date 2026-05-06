@@ -14,7 +14,13 @@ defmodule LiveIslandsTest do
     def mixed_component(assigns) do
       ~H"""
       <div>
-        <.react id="react-card" name="ReactCard" title="React" client={:visible} prefetch={:idle} />
+        <.react
+          id="react-card"
+          name="ReactCard"
+          title="React"
+          client={:interaction}
+          prefetch={:idle}
+        />
         <.vue
           id="vue-card"
           v-component="VueCard"
@@ -38,7 +44,7 @@ defmodule LiveIslandsTest do
       assert island.component == "ReactCard"
       assert island.props == %{"title" => "React"}
       assert island.id == "react-card"
-      assert island.client == "visible"
+      assert island.client == "interaction"
       assert island.prefetch == "idle"
     end
 
@@ -55,6 +61,34 @@ defmodule LiveIslandsTest do
       assert island.client_media == "(min-width: 800px)"
       assert island.prefetch == "media"
       assert island.prefetch_media == "(min-width: 1024px)"
+    end
+
+    def server_component(assigns) do
+      ~H"""
+      <div>
+        <.react_server id="server-react" name="ServerReact" title="Static React" />
+        <.vue_server id="server-vue" v-component="ServerVue" title="Static Vue" />
+      </div>
+      """
+    end
+
+    test "renders first-class server-only islands without LiveView hooks" do
+      html = render_component(&server_component/1)
+
+      react = Test.get_react(html, id: "server-react")
+      vue = Test.get_vue(html, id: "server-vue")
+
+      assert react.server_only
+      assert react.client == "none"
+      assert react.prefetch == "none"
+      assert react.hook == nil
+      assert react.phx_update == nil
+
+      assert vue.server_only
+      assert vue.client == "none"
+      assert vue.prefetch == "none"
+      assert vue.hook == nil
+      assert vue.phx_update == nil
     end
   end
 end

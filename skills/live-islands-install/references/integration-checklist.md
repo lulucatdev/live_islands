@@ -49,6 +49,7 @@ LiveIslands supports per-island hydration strategies:
 - `client={:load}` for immediate hydration. This is the default.
 - `client={:idle}` for idle-time hydration.
 - `client={:visible}` for viewport-triggered hydration.
+- `client={:interaction}` for pointer, touch, or focus intent.
 - `client={{:media, "(min-width: 1024px)"}}` for media-query hydration.
 - `client={:none}` for SSR-only static islands.
 
@@ -63,8 +64,13 @@ LiveIslands can preload island component chunks without hydrating the island:
 - `prefetch={:visible}` preloads when the island enters the viewport.
 - `prefetch={:hover}` preloads when the island receives pointer or focus intent.
 - `prefetch={:tap}` preloads on pointer/touch down.
+- `prefetch={:interaction}` preloads on pointer, touch, or focus intent.
 - `prefetch={{:media, "(min-width: 1024px)"}}` preloads when a media query matches.
 - `prefetch={:none}` disables prefetch. This is the default.
+
+## Server-Only Islands
+
+Use `<.react_server>` and `<.vue_server>` for SSR-only components that should not attach a client hook or ship island JavaScript. They require SSR configuration and are useful for static or server-refreshed page fragments.
 
 ## Optional Scaffold
 

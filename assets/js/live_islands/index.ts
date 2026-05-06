@@ -3,8 +3,10 @@ import { getHooks as getVueHooks } from "./vue/index.js";
 import { setupIslandPrefetch } from "./prefetch.js";
 
 export { getReactHooks, getVueHooks };
+export { defineClientStrategy } from "./hydration.js";
 export {
   createIslandPrefetcher,
+  definePrefetchStrategy,
   getIslandManifest,
   setupIslandPrefetch,
 } from "./prefetch.js";
