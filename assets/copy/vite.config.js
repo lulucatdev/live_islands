@@ -9,6 +9,7 @@ import liveIslandsPlugin from "live_islands/vite-plugin";
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
   const isDev = command !== "build";
+  const mixEnv = process.env.MIX_ENV || "dev";
 
   return {
     base: isDev ? undefined : "/assets",
@@ -22,6 +23,10 @@ export default defineConfig(({ command }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "."),
+        "phoenix-colocated": path.resolve(
+          __dirname,
+          `../_build/${mixEnv}/phoenix-colocated`,
+        ),
       },
     },
     optimizeDeps: {

@@ -15,8 +15,8 @@ defmodule Mix.Tasks.LiveIslands.Install do
 
     LiveIslands installation files are in place.
 
-    Review the generated assets and ensure `import LiveIslands` is present in
-    your web helpers when you want to use <.react> and <.vue> directly.
+    Your Phoenix assets now use Vite + Tailwind CSS through npm, without daisyUI.
+    Review the generated React and Vue island roots, then run `npm install --prefix assets`.
     """)
   end
 end

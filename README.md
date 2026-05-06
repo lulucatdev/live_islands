@@ -58,7 +58,10 @@ end
 ```bash
 mix deps.get
 mix live_islands.install
+npm install --prefix assets
 ```
+
+The installer converts Phoenix's default asset stack to Vite + Tailwind CSS through npm and removes daisyUI from the generated Phoenix 1.8 assets.
 
 ## Credits
 
