@@ -1,9 +1,16 @@
-import { Simple } from "./simple";
-import { LinkExample } from "./link-example";
-import { Link } from "live_islands/react";
+import { createReactIsland, Link } from "live_islands/react";
 
-export default {
-  Simple,
-  LinkExample,
+const components = {
+  Simple: () => import("./simple"),
+  LinkExample: () => import("./link-example"),
   Link,
 };
+
+export default createReactIsland({
+  resolve: (name) => {
+    const component = components[name];
+    return typeof component === "function" && name !== "Link"
+      ? component()
+      : component;
+  },
+});

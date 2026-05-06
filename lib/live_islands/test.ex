@@ -99,7 +99,9 @@ defmodule LiveIslands.Test do
         component: attr(island, "data-name"),
         id: attr(island, "id"),
         slots: extract_base64_slots(attr(island, "data-slots")),
-        ssr: if(is_nil(attr(island, "data-ssr")), do: false, else: true),
+        client: attr(island, "data-client"),
+        client_media: attr(island, "data-client-media"),
+        ssr: attr(island, "data-ssr") == "true",
         class: attr(island, "class")
       }
     else

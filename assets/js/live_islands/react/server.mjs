@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { getComponentTree } from "./utils";
+import { normalizeReactIslandApp } from "./app";
 
 function getChildren(slots) {
   if (!slots?.default) {
@@ -15,11 +16,10 @@ function getChildren(slots) {
 }
 
 export function getRender(components) {
-  return function render(name, props, slots) {
-    const Component = components[name];
-    if (!Component) {
-      throw new Error(`Component "${name}" not found`);
-    }
+  const app = normalizeReactIslandApp(components);
+
+  return async function render(name, props, slots) {
+    const Component = await app.resolve(name);
     const children = getChildren(slots);
     const tree = getComponentTree(Component, props, children);
 

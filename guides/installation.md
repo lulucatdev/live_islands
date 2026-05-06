@@ -118,6 +118,21 @@ Add component roots and an SSR entrypoint:
 - `assets/vue-components/index.{js,ts}`
 - `assets/js/server.js`
 
+Prefer async component registries for production apps:
+
+```js
+import { createReactIsland } from "live_islands/react";
+
+const components = {
+  Dashboard: () => import("./dashboard"),
+  Settings: () => import("./settings"),
+};
+
+export default createReactIsland({
+  resolve: (name) => components[name]?.(),
+});
+```
+
 The optional scaffold task can copy starter versions:
 
 ```bash
@@ -188,6 +203,8 @@ mix test
 Finally render one React island and one Vue island:
 
 ```heex
-<.react name="Simple" />
-<.vue v-component="status" message="Vue island ready" />
+<.react name="Simple" client={:visible} />
+<.vue v-component="status" client={:idle} message="Vue island ready" />
 ```
+
+See `guides/lazy-islands.md` for `client={:load | :idle | :visible | {:media, query} | :none}` and component-level code splitting.

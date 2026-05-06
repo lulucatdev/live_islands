@@ -23,6 +23,7 @@ LiveIslands requires these project-level integration points.
 - Ensure `assets/vite.config.*` includes React, Vue, and `live_islands/vite-plugin`.
 - If Phoenix colocated hooks are imported from `phoenix-colocated/<app>`, add a Vite alias to `_build/${MIX_ENV || "dev"}/phoenix-colocated`.
 - Ensure `assets/js/app.js` imports `getIslandHooks`, React components, and Vue components, then combines them with any existing hooks.
+- Prefer async React/Vue component registries so Vite can split page-specific island chunks.
 - Ensure `assets/js/server.js` can dispatch SSR to both React and Vue renderers.
 - Ensure `assets/react-components/index.{js,jsx,ts,tsx}` and `assets/vue-components/index.{js,ts}` exist.
 - Ensure root layout loads Vite assets in development, usually with `LiveIslands.Reload.vite_assets`.
@@ -35,6 +36,18 @@ LiveIslands does not require removing daisyUI.
 - Add Tailwind source coverage for React and Vue component directories.
 - Preserve existing `@plugin`, `@theme`, `@custom-variant`, and design-system CSS.
 - If the project uses Phoenix 1.8 default daisyUI vendor plugins, they can stay as long as the Vite/Tailwind build passes.
+
+## Lazy Hydration
+
+LiveIslands supports per-island hydration strategies:
+
+- `client={:load}` for immediate hydration. This is the default.
+- `client={:idle}` for idle-time hydration.
+- `client={:visible}` for viewport-triggered hydration.
+- `client={{:media, "(min-width: 1024px)"}}` for media-query hydration.
+- `client={:none}` for SSR-only static islands.
+
+Use these strategies to keep heavy islands out of the initial interactive path.
 
 ## Optional Scaffold
 

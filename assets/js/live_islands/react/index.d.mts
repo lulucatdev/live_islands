@@ -1,5 +1,21 @@
 import React from "react";
 
+export type ReactComponentModule =
+  | React.ComponentType<any>
+  | { default: React.ComponentType<any> };
+
+export type ReactComponentPromise =
+  | ReactComponentModule
+  | Promise<ReactComponentModule>;
+
+export type ReactIslandOptions = {
+  resolve: (name: string) => ReactComponentPromise | undefined | null;
+};
+
+export function createReactIsland(options: ReactIslandOptions): {
+  resolve: (name: string) => Promise<React.ComponentType<any>>;
+};
+
 export interface LiveProps {
   pushEvent: (
     event: string,

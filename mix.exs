@@ -75,6 +75,7 @@ defmodule LiveIslands.MixProject do
       extras: [
         "README.md",
         "guides/installation.md",
+        "guides/lazy-islands.md",
         "guides/deployment.md",
         "guides/development.md",
         "guides/ssr.md",

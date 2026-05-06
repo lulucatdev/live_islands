@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { getComponentTree } from "./utils";
 import { decodeCompactPatch } from "./compactPatch";
 import { applyPatch } from "./jsonPatch";
+import { normalizeReactIslandApp } from "./app";
+import { scheduleHydration } from "../hydration";
 
 function getAttributeJson(el, attributeName) {
   const data = el.getAttribute(attributeName);
@@ -73,8 +75,12 @@ function getHandlers(hook) {
 }
 
 export function getHooks(components) {
+  const app = normalizeReactIslandApp(components);
+
   const LiveIslandsReactHook = {
     _render() {
+      if (!this._root || !this._Component) return;
+
       const tree = getComponentTree(
         this._Component,
         this._props,
@@ -89,45 +95,45 @@ export function getHooks(components) {
         throw new Error("Component name must be provided");
       }
 
-      this._Component = components[componentName];
       this._props = getProps(this);
       this._props = applyPatch(
         this._props,
         getDiff(this.el, "data-streams-diff"),
       );
 
-      const isSSR = this.el.hasAttribute("data-ssr");
+      this._cancelHydration = scheduleHydration(this.el, async () => {
+        this._Component = await app.resolve(componentName);
+        const isSSR = this.el.getAttribute("data-ssr") === "true";
 
-      if (isSSR) {
-        const tree = getComponentTree(
-          this._Component,
-          this._props,
-          getChildren(this),
-          getLiveContext(this),
-        );
-        this._root = ReactDOM.hydrateRoot(this.el, tree);
-      } else {
-        this._root = ReactDOM.createRoot(this.el);
-        this._render();
-      }
+        if (isSSR) {
+          const tree = getComponentTree(
+            this._Component,
+            this._props,
+            getChildren(this),
+            getLiveContext(this),
+          );
+          this._root = ReactDOM.hydrateRoot(this.el, tree);
+        } else {
+          this._root = ReactDOM.createRoot(this.el);
+          this._render();
+        }
+      });
     },
     updated() {
-      if (this._root) {
-        if (this.el.getAttribute("data-use-diff") === "true") {
-          this._props = applyPatch(
-            this._props,
-            getDiff(this.el, "data-props-diff"),
-          );
-          Object.assign(this._props, getHandlers(this));
-        } else {
-          this._props = getProps(this);
-        }
+      if (this.el.getAttribute("data-use-diff") === "true") {
         this._props = applyPatch(
           this._props,
-          getDiff(this.el, "data-streams-diff"),
+          getDiff(this.el, "data-props-diff"),
         );
-        this._render();
+        Object.assign(this._props, getHandlers(this));
+      } else {
+        this._props = getProps(this);
       }
+      this._props = applyPatch(
+        this._props,
+        getDiff(this.el, "data-streams-diff"),
+      );
+      this._render();
     },
     reconnected() {
       this._props = getProps(this);
@@ -138,6 +144,8 @@ export function getHooks(components) {
       if (this._root) this._render();
     },
     destroyed() {
+      if (this._cancelHydration) this._cancelHydration();
+
       if (this._root) {
         window.addEventListener(
           "phx:page-loading-stop",

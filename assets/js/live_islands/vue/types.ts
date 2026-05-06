@@ -22,6 +22,7 @@ export type VueArgs = {
   props: VuePropsInternal;
   slots: VueSlotsInternal;
   app: App<Element>;
+  cancelHydration?: () => void;
 };
 
 // all the functions and additional properties that are available on the LiveHook

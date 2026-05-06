@@ -1,3 +1,4 @@
+export { createReactIsland } from "./app";
 export { getHooks } from "./hooks";
 export {
   LiveFormProvider,

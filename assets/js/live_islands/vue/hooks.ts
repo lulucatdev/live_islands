@@ -11,15 +11,15 @@ import { vueIslandInjectKey, hooksById } from "./use.js";
 import { getProps, getDiff, getElementId } from "./attrs.js";
 import { applyPatch } from "./jsonPatch.js";
 import { registerInjector, unregisterInjector, syncSlots } from "./inject.js";
+import { scheduleHydration } from "../hydration.js";
 
 const shouldHydrate = (el: HTMLElement): boolean =>
   el.getAttribute("data-ssr") === "true" && el.hasChildNodes();
 
 export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
-  async mounted() {
+  mounted() {
     const el = this.el as HTMLElement;
     const componentName = el.getAttribute("data-name");
-    const component = componentName ? await resolve(componentName) : null;
 
     const props = reactive(getProps(el, this.liveSocket));
     applyPatch(props, getDiff(el, "data-streams-diff"));
@@ -29,34 +29,38 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
     if (elementId) hooksById.set(elementId, this as LiveHook);
     syncSlots(elementId);
 
-    const targetId = el.getAttribute("data-inject");
-    if (targetId && elementId && component) {
-      const slotName = el.getAttribute("data-inject-slot") || "default";
-      registerInjector(elementId, targetId, slotName, component);
-      return;
-    }
+    this.vue.cancelHydration = scheduleHydration(el, async () => {
+      const component = componentName ? await resolve(componentName) : null;
 
-    if (!component) return;
-    const makeApp = shouldHydrate(el) ? createSSRApp : createApp;
+      const targetId = el.getAttribute("data-inject");
+      if (targetId && elementId && component) {
+        const slotName = el.getAttribute("data-inject-slot") || "default";
+        registerInjector(elementId, targetId, slotName, component);
+        return;
+      }
 
-    const app = setup({
-      createApp: makeApp,
-      component,
-      props,
-      slots: this.vue.slots,
-      plugin: {
-        install: (app: App) => {
-          app.provide(vueIslandInjectKey, this as LiveHook);
-          app.config.globalProperties.$live = this as LiveHook;
+      if (!component) return;
+      const makeApp = shouldHydrate(el) ? createSSRApp : createApp;
+
+      const app = setup({
+        createApp: makeApp,
+        component,
+        props,
+        slots: this.vue.slots,
+        plugin: {
+          install: (app: App) => {
+            app.provide(vueIslandInjectKey, this as LiveHook);
+            app.config.globalProperties.$live = this as LiveHook;
+          },
         },
-      },
-      el: this.el,
-      ssr: false,
+        el: this.el,
+        ssr: false,
+      });
+
+      if (!app) throw new Error("Setup function did not return a Vue app!");
+
+      this.vue.app = app;
     });
-
-    if (!app) throw new Error("Setup function did not return a Vue app!");
-
-    this.vue.app = app;
   },
   updated() {
     if (this.el.getAttribute("data-use-diff") === "true") {
@@ -80,6 +84,8 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
     }
 
     const instance = this.vue.app;
+    if (this.vue.cancelHydration) this.vue.cancelHydration();
+
     if (instance) {
       window.addEventListener(
         "phx:page-loading-stop",

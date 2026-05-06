@@ -15,12 +15,14 @@ defmodule LiveIslandsExamplesWeb.LiveCapabilities do
         documentUpload={@uploads.documents}
         uploadedFiles={@uploaded_files}
         ssr={false}
+        client={:visible}
       />
       <.vue
         id="vue-capabilities"
         v-component="status"
         v-socket={@socket}
         v-ssr={false}
+        client={:visible}
         message={@vue_message}
         v-on:ping={JS.push("vue-ping")}
       />

@@ -2,6 +2,7 @@ import { getHooks as getReactHooks } from "./react/hooks.js";
 import { getHooks as getVueHooks } from "./vue/index.js";
 
 export { getReactHooks, getVueHooks };
+export { createReactIsland } from "./react/app.js";
 export { Link as ReactLink } from "./react/link.jsx";
 export {
   LiveFormProvider,
