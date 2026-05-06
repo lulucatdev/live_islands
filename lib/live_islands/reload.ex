@@ -86,29 +86,31 @@ defmodule LiveIslands.Reload do
   end
 
   defp production_assets(assets, manifest_path) do
-    with {:ok, manifest} <- read_manifest(manifest_path) do
-      entries =
-        assets
-        |> Enum.map(&normalize_asset/1)
-        |> Enum.flat_map(&manifest_entries(manifest, &1))
+    case read_manifest(manifest_path) do
+      {:ok, manifest} ->
+        entries =
+          assets
+          |> Enum.map(&normalize_asset/1)
+          |> Enum.flat_map(&manifest_entries(manifest, &1))
 
-      stylesheets =
-        entries
-        |> Enum.flat_map(&Map.get(&1, "css", []))
-        |> Enum.map(&asset_path/1)
-        |> Enum.uniq()
+        stylesheets =
+          entries
+          |> Enum.flat_map(&Map.get(&1, "css", []))
+          |> Enum.map(&asset_path/1)
+          |> Enum.uniq()
 
-      javascripts =
-        entries
-        |> Enum.map(&Map.get(&1, "file"))
-        |> Enum.reject(&is_nil/1)
-        |> Enum.filter(&(String.ends_with?(&1, ".js") or String.ends_with?(&1, ".mjs")))
-        |> Enum.map(&asset_path/1)
-        |> Enum.uniq()
+        javascripts =
+          entries
+          |> Enum.map(&Map.get(&1, "file"))
+          |> Enum.reject(&is_nil/1)
+          |> Enum.filter(&(String.ends_with?(&1, ".js") or String.ends_with?(&1, ".mjs")))
+          |> Enum.map(&asset_path/1)
+          |> Enum.uniq()
 
-      %{found?: entries != [], stylesheets: stylesheets, javascripts: javascripts}
-    else
-      _ -> %{found?: false, stylesheets: [], javascripts: []}
+        %{found?: entries != [], stylesheets: stylesheets, javascripts: javascripts}
+
+      _error ->
+        empty_production_assets()
     end
   end
 
@@ -129,9 +131,8 @@ defmodule LiveIslands.Reload do
   end
 
   defp read_manifest(manifest_path) do
-    with {:ok, content} <- File.read(manifest_path),
-         {:ok, manifest} <- Jason.decode(content) do
-      {:ok, manifest}
+    with {:ok, content} <- File.read(manifest_path) do
+      Jason.decode(content)
     end
   end
 

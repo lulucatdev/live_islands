@@ -144,91 +144,16 @@ defmodule LiveIslands do
   end
 
   defp render_island(assigns, config) do
-    init = Map.get(assigns, :__changed__) == nil
-    socket = Map.get(assigns, config.socket_key)
-    dead = socket == nil or not LiveView.connected?(socket)
-    use_diff = Map.get(assigns, config.diff_key, diff_default())
-    use_streams_diff = Enum.any?(assigns, fn {_key, value} -> match?(%LiveStream{}, value) end)
-    component_name = Map.get(assigns, config.component_key)
-    server_only? = Map.get(assigns, :server_only, false)
-    {client, client_media} = client_config(assigns, config)
-    {prefetch, prefetch_media} = prefetch_config(assigns, config)
-
-    render_ssr? =
-      (server_only? or (init and dead)) and
-        Map.get(assigns, config.ssr_key, ssr_default()) and component_name
-
-    {inject_target, inject_slot} = inject_config(assigns, config)
-
-    base_assigns =
-      if use_diff do
-        Enum.filter(assigns, fn {key, _value} -> key_changed(assigns, key) end)
-      else
-        assigns
-      end
-
-    props = extract(base_assigns, :props, config)
-    streams = extract(base_assigns, :streams, config)
-    slots = extract(base_assigns, :slots, config)
-    handlers = extract(base_assigns, :handlers, config)
-    props_diff = if use_diff, do: calculate_props_diff(props, assigns), else: []
-
-    streams_diff =
-      if use_streams_diff, do: calculate_streams_diff(streams, init or dead), else: []
+    context = island_context(assigns, config)
+    base_assigns = changed_assigns(assigns, context.use_diff)
+    data = island_data(base_assigns, assigns, config, context)
 
     assigns =
       assigns
-      |> Map.put_new(:class, nil)
-      |> Map.put(:__framework, config.framework)
-      |> Map.put(:__hook, if(server_only?, do: nil, else: config.hook))
-      |> Map.put(:__component_name, component_name)
-      |> validate_component!(config)
-      |> then(fn assigns ->
-        Map.put_new_lazy(assigns, :id, fn -> id(component_name, config.counter_key) end)
-      end)
-      |> Map.put(:props, props)
-      |> Map.put(:props_diff, Patch.serialize(props_diff))
-      |> Map.put(:streams_diff, Patch.serialize(streams_diff))
-      |> Map.put(:handlers, handlers)
-      |> Map.put(:slots, Slots.rendered_slot_map(slots, config.framework))
-      |> Map.put(:use_diff, use_diff)
-      |> Map.put(:client, client)
-      |> Map.put(:client_media, client_media)
-      |> Map.put(:prefetch, prefetch)
-      |> Map.put(:prefetch_media, prefetch_media)
-      |> Map.put(:inject_target, inject_target)
-      |> Map.put(:inject_slot, inject_slot)
-      |> Map.put(:server_only?, server_only?)
-
-    assigns =
-      Map.put(assigns, :ssr_render, if(render_ssr?, do: ssr_render(assigns), else: nil))
-
-    computed_changed =
-      %{
-        props: init or dead or not use_diff,
-        slots: slots != %{},
-        handlers: handlers != %{},
-        ssr_render: is_map(assigns.ssr_render),
-        props_diff: not init and not dead and use_diff,
-        streams_diff: use_streams_diff
-      }
-
-    assigns =
-      update_in(assigns.__changed__, fn
-        nil -> nil
-        changed -> for {key, true} <- computed_changed, into: changed, do: {key, true}
-      end)
-
-    assigns =
-      assigns
-      |> Map.put(
-        :ssr_html,
-        if(is_map(assigns.ssr_render), do: assigns.ssr_render[:html], else: nil)
-      )
-      |> Map.put(:ssr?, is_map(assigns.ssr_render))
-      |> Map.put(:hidden_style, if(assigns.inject_target, do: "display:none", else: nil))
-      |> Map.put(:no_format?, if(server_only?, do: nil, else: config.framework == :vue))
-      |> Map.put(:phx_update, if(server_only?, do: nil, else: "ignore"))
+      |> put_island_assigns(config, context, data)
+      |> put_ssr_render(context.render_ssr?)
+      |> put_computed_changed(context, data)
+      |> put_render_flags(config, context)
 
     ~H"""
     <div
@@ -257,6 +182,129 @@ defmodule LiveIslands do
     ><%= raw(@ssr_html) %></div>
     """
   end
+
+  defp island_context(assigns, config) do
+    init? = Map.get(assigns, :__changed__) == nil
+    socket = Map.get(assigns, config.socket_key)
+    dead? = socket == nil or not LiveView.connected?(socket)
+    use_diff = Map.get(assigns, config.diff_key, diff_default())
+    server_only? = Map.get(assigns, :server_only, false)
+    component_name = Map.get(assigns, config.component_key)
+    {client, client_media} = client_config(assigns, config)
+    {prefetch, prefetch_media} = prefetch_config(assigns, config)
+    {inject_target, inject_slot} = inject_config(assigns, config)
+
+    %{
+      init?: init?,
+      dead?: dead?,
+      use_diff: use_diff,
+      use_streams_diff: streams_diff?(assigns),
+      component_name: component_name,
+      server_only?: server_only?,
+      client: client,
+      client_media: client_media,
+      prefetch: prefetch,
+      prefetch_media: prefetch_media,
+      inject_target: inject_target,
+      inject_slot: inject_slot,
+      render_ssr?: render_ssr?(assigns, config, init?, dead?, server_only?, component_name)
+    }
+  end
+
+  defp streams_diff?(assigns) do
+    Enum.any?(assigns, fn {_key, value} -> match?(%LiveStream{}, value) end)
+  end
+
+  defp render_ssr?(assigns, config, init?, dead?, server_only?, component_name) do
+    (server_only? or (init? and dead?)) and
+      Map.get(assigns, config.ssr_key, ssr_default()) and not is_nil(component_name)
+  end
+
+  defp changed_assigns(assigns, true) do
+    Enum.filter(assigns, fn {key, _value} -> key_changed(assigns, key) end)
+  end
+
+  defp changed_assigns(assigns, false), do: assigns
+
+  defp island_data(base_assigns, assigns, config, context) do
+    props = extract(base_assigns, :props, config)
+    streams = extract(base_assigns, :streams, config)
+    slots = extract(base_assigns, :slots, config)
+    handlers = extract(base_assigns, :handlers, config)
+
+    %{
+      props: props,
+      slots: slots,
+      handlers: handlers,
+      props_diff: props_diff(props, assigns, context.use_diff),
+      streams_diff: streams_diff(streams, context)
+    }
+  end
+
+  defp props_diff(props, assigns, true), do: calculate_props_diff(props, assigns)
+  defp props_diff(_props, _assigns, false), do: []
+
+  defp streams_diff(streams, %{use_streams_diff: true} = context) do
+    calculate_streams_diff(streams, context.init? or context.dead?)
+  end
+
+  defp streams_diff(_streams, _context), do: []
+
+  defp put_island_assigns(assigns, config, context, data) do
+    assigns
+    |> Map.put_new(:class, nil)
+    |> Map.put(:__framework, config.framework)
+    |> Map.put(:__hook, if(context.server_only?, do: nil, else: config.hook))
+    |> Map.put(:__component_name, context.component_name)
+    |> validate_component!(config)
+    |> then(fn assigns ->
+      Map.put_new_lazy(assigns, :id, fn -> id(context.component_name, config.counter_key) end)
+    end)
+    |> Map.put(:props, data.props)
+    |> Map.put(:props_diff, Patch.serialize(data.props_diff))
+    |> Map.put(:streams_diff, Patch.serialize(data.streams_diff))
+    |> Map.put(:handlers, data.handlers)
+    |> Map.put(:slots, Slots.rendered_slot_map(data.slots, config.framework))
+    |> Map.put(:use_diff, context.use_diff)
+    |> Map.put(:client, context.client)
+    |> Map.put(:client_media, context.client_media)
+    |> Map.put(:prefetch, context.prefetch)
+    |> Map.put(:prefetch_media, context.prefetch_media)
+    |> Map.put(:inject_target, context.inject_target)
+    |> Map.put(:inject_slot, context.inject_slot)
+    |> Map.put(:server_only?, context.server_only?)
+  end
+
+  defp put_ssr_render(assigns, true), do: Map.put(assigns, :ssr_render, ssr_render(assigns))
+  defp put_ssr_render(assigns, false), do: Map.put(assigns, :ssr_render, nil)
+
+  defp put_computed_changed(assigns, context, data) do
+    computed_changed = %{
+      props: context.init? or context.dead? or not context.use_diff,
+      slots: data.slots != %{},
+      handlers: data.handlers != %{},
+      ssr_render: is_map(assigns.ssr_render),
+      props_diff: not context.init? and not context.dead? and context.use_diff,
+      streams_diff: context.use_streams_diff
+    }
+
+    update_in(assigns.__changed__, fn
+      nil -> nil
+      changed -> for {key, true} <- computed_changed, into: changed, do: {key, true}
+    end)
+  end
+
+  defp put_render_flags(assigns, config, context) do
+    assigns
+    |> Map.put(:ssr_html, ssr_html(assigns.ssr_render))
+    |> Map.put(:ssr?, is_map(assigns.ssr_render))
+    |> Map.put(:hidden_style, if(assigns.inject_target, do: "display:none", else: nil))
+    |> Map.put(:no_format?, if(context.server_only?, do: nil, else: config.framework == :vue))
+    |> Map.put(:phx_update, if(context.server_only?, do: nil, else: "ignore"))
+  end
+
+  defp ssr_html(%{} = render), do: render[:html]
+  defp ssr_html(_render), do: nil
 
   defp validate_component!(assigns, %{require_component: true}) do
     if is_nil(assigns.__component_name) do

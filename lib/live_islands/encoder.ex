@@ -110,16 +110,9 @@ defimpl LiveIslands.Encoder, for: Phoenix.HTML.Form do
           collect_changeset_values(changeset, opts)
 
         :error ->
-          case Map.fetch!(source.data, field) do
-            %Ecto.Association.NotLoaded{} = not_loaded ->
-              if opts[:nilify_not_loaded], do: nil, else: not_loaded
-
-            %{__meta__: _} = value ->
-              Map.delete(value, :__meta__)
-
-            value ->
-              value
-          end
+          source.data
+          |> Map.fetch!(field)
+          |> normalize_relation_value(opts)
       end
     end
 
@@ -132,16 +125,9 @@ defimpl LiveIslands.Encoder, for: Phoenix.HTML.Form do
           |> Enum.map(&collect_changeset_values(&1, opts))
 
         :error ->
-          case Map.fetch!(source.data, field) do
-            %Ecto.Association.NotLoaded{} = not_loaded ->
-              if opts[:nilify_not_loaded], do: nil, else: not_loaded
-
-            [%{__meta__: _} | _] = value ->
-              Enum.map(value, &Map.delete(&1, :__meta__))
-
-            value ->
-              value
-          end
+          source.data
+          |> Map.fetch!(field)
+          |> normalize_many_relation_value(opts)
       end
     end
 
@@ -153,27 +139,58 @@ defimpl LiveIslands.Encoder, for: Phoenix.HTML.Form do
       errors = translate_errors(changeset.errors)
 
       Enum.reduce(changeset.changes, errors, fn {field, value}, acc ->
-        case Map.get(changeset.types, field) do
-          {tag, %{cardinality: :one}} when tag in @relations ->
-            embed_errors = collect_changeset_errors(value)
-            if embed_errors == %{}, do: acc, else: Map.put(acc, field, embed_errors)
-
-          {tag, %{cardinality: :many}} when tag in @relations ->
-            list_errors =
-              value
-              |> Enum.filter(&(&1.params != nil))
-              |> Enum.map(fn embed_changeset ->
-                embed_errors = collect_changeset_errors(embed_changeset)
-                if embed_errors == %{}, do: nil, else: embed_errors
-              end)
-
-            if Enum.all?(list_errors, &is_nil/1), do: acc, else: Map.put(acc, field, list_errors)
-
-          _ ->
-            acc
-        end
+        put_nested_changeset_errors(acc, field, value, Map.get(changeset.types, field))
       end)
     end
+
+    defp normalize_relation_value(%Ecto.Association.NotLoaded{} = not_loaded, opts) do
+      if opts[:nilify_not_loaded], do: nil, else: not_loaded
+    end
+
+    defp normalize_relation_value(%{__meta__: _} = value, _opts), do: Map.delete(value, :__meta__)
+    defp normalize_relation_value(value, _opts), do: value
+
+    defp normalize_many_relation_value(%Ecto.Association.NotLoaded{} = not_loaded, opts) do
+      if opts[:nilify_not_loaded], do: nil, else: not_loaded
+    end
+
+    defp normalize_many_relation_value([%{__meta__: _} | _] = value, _opts) do
+      Enum.map(value, &Map.delete(&1, :__meta__))
+    end
+
+    defp normalize_many_relation_value(value, _opts), do: value
+
+    defp put_nested_changeset_errors(acc, field, value, {tag, %{cardinality: :one}})
+         when tag in @relations do
+      value
+      |> collect_changeset_errors()
+      |> empty_errors_to_nil()
+      |> maybe_put_errors(acc, field)
+    end
+
+    defp put_nested_changeset_errors(acc, field, value, {tag, %{cardinality: :many}})
+         when tag in @relations do
+      list_errors =
+        value
+        |> Enum.filter(&(&1.params != nil))
+        |> Enum.map(&collect_nested_changeset_errors/1)
+
+      if Enum.all?(list_errors, &is_nil/1), do: acc, else: Map.put(acc, field, list_errors)
+    end
+
+    defp put_nested_changeset_errors(acc, _field, _value, _type), do: acc
+
+    defp collect_nested_changeset_errors(changeset) do
+      changeset
+      |> collect_changeset_errors()
+      |> empty_errors_to_nil()
+    end
+
+    defp empty_errors_to_nil(errors) when errors == %{}, do: nil
+    defp empty_errors_to_nil(errors), do: errors
+
+    defp maybe_put_errors(nil, acc, _field), do: acc
+    defp maybe_put_errors(errors, acc, field), do: Map.put(acc, field, errors)
 
     def encode_form_values(%{impl: Phoenix.HTML.FormData.Ecto.Changeset, source: source}, opts) do
       source |> collect_changeset_values(opts) |> LiveIslands.Encoder.encode(opts)
@@ -224,19 +241,25 @@ defimpl LiveIslands.Encoder, for: Phoenix.HTML.Form do
         apply(Gettext, :dgettext, [backend, "errors", msg, opts])
 
       true ->
-        Enum.reduce(opts, msg, fn {key, value}, acc ->
-          replacement =
-            value
-            |> List.wrap()
-            |> Enum.map_join(", ", fn
-              v when is_binary(v) or is_atom(v) or is_number(v) -> to_string(v)
-              v -> inspect(v)
-            end)
-
-          String.replace(acc, "%{#{key}}", replacement)
-        end)
+        Enum.reduce(opts, msg, &replace_error_token/2)
     end
   end
+
+  defp replace_error_token({key, value}, acc) do
+    String.replace(acc, "%{#{key}}", format_error_value(value))
+  end
+
+  defp format_error_value(value) do
+    value
+    |> List.wrap()
+    |> Enum.map_join(", ", &format_error_part/1)
+  end
+
+  defp format_error_part(value) when is_binary(value) or is_atom(value) or is_number(value) do
+    to_string(value)
+  end
+
+  defp format_error_part(value), do: inspect(value)
 end
 
 defimpl LiveIslands.Encoder, for: Any do
