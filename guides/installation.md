@@ -94,6 +94,7 @@ import vueComponents from "../vue-components";
 const islandHooks = getIslandHooks({
   react: reactComponents,
   vue: vueComponents,
+  prefetch: true,
 });
 
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -219,8 +220,8 @@ mix test
 Finally render one React island and one Vue island:
 
 ```heex
-<.react name="Simple" client={:visible} />
-<.vue v-component="status" client={:idle} message="Vue island ready" />
+<.react name="Simple" client={:visible} prefetch={:idle} />
+<.vue v-component="status" client={:idle} prefetch={:hover} message="Vue island ready" />
 ```
 
-See `guides/lazy-islands.md` for `client={:load | :idle | :visible | {:media, query} | :none}` and component-level code splitting.
+See `guides/lazy-islands.md` for `client={:load | :idle | :visible | {:media, query} | :none}`, `prefetch={:load | :idle | :visible | :hover | :tap | {:media, query} | :none}`, and component-level code splitting.

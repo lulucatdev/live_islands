@@ -25,6 +25,7 @@ LiveIslands requires these project-level integration points.
 - Ensure `assets/vite.config.*` includes Tailwind, React, Vue, and `live_islands/vite-plugin`.
 - If Phoenix colocated hooks are imported from `phoenix-colocated/<app>`, add a Vite alias to `_build/${MIX_ENV || "dev"}/phoenix-colocated`.
 - Ensure `assets/js/app.js` imports `getIslandHooks`, React components, and Vue components, then combines them with any existing hooks.
+- Enable `getIslandHooks({ react, vue, prefetch: true })` when the app wants page-aware island chunk prefetching.
 - Prefer async React/Vue component registries so Vite can split page-specific island chunks.
 - Ensure `assets/js/server.js` can dispatch SSR to both React and Vue renderers.
 - Ensure `assets/react-components/index.{js,jsx,ts,tsx}` and `assets/vue-components/index.{js,ts}` exist.
@@ -52,6 +53,18 @@ LiveIslands supports per-island hydration strategies:
 - `client={:none}` for SSR-only static islands.
 
 Use these strategies to keep heavy islands out of the initial interactive path.
+
+## Page-Aware Prefetch
+
+LiveIslands can preload island component chunks without hydrating the island:
+
+- `prefetch={:load}` preloads as soon as the current page is scanned.
+- `prefetch={:idle}` preloads during idle time.
+- `prefetch={:visible}` preloads when the island enters the viewport.
+- `prefetch={:hover}` preloads when the island receives pointer or focus intent.
+- `prefetch={:tap}` preloads on pointer/touch down.
+- `prefetch={{:media, "(min-width: 1024px)"}}` preloads when a media query matches.
+- `prefetch={:none}` disables prefetch. This is the default.
 
 ## Optional Scaffold
 

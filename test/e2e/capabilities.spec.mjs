@@ -3,7 +3,20 @@ import { expect, test } from "@playwright/test";
 test("LiveIslands React and Vue hooks work through LiveView", async ({
   page,
 }) => {
+  const responses = [];
+  page.on("response", (response) => responses.push(response.url()));
+
   await page.goto("/capabilities");
+
+  await expect
+    .poll(() =>
+      responses.some(
+        (url) =>
+          url.includes("/react-components/simple.jsx") ||
+          url.includes("/simple.js"),
+      ),
+    )
+    .toBe(true);
 
   const streamItems = page.getByTestId("stream-list").locator("li");
   await expect(streamItems).toHaveCount(1);

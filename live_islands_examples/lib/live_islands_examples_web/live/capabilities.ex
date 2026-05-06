@@ -16,6 +16,15 @@ defmodule LiveIslandsExamplesWeb.LiveCapabilities do
         uploadedFiles={@uploaded_files}
         ssr={false}
         client={:visible}
+        prefetch={:load}
+      />
+      <.react
+        id="prefetch-probe"
+        class="hidden"
+        name="Simple"
+        ssr={false}
+        client={:none}
+        prefetch={:load}
       />
       <.vue
         id="vue-capabilities"
@@ -23,6 +32,7 @@ defmodule LiveIslandsExamplesWeb.LiveCapabilities do
         v-socket={@socket}
         v-ssr={false}
         client={:visible}
+        prefetch={:idle}
         message={@vue_message}
         v-on:ping={JS.push("vue-ping")}
       />

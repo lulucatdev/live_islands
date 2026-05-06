@@ -112,6 +112,10 @@ export function getHooks(components) {
         getDiff(this.el, "data-streams-diff"),
       );
 
+      window.dispatchEvent(
+        new CustomEvent("live-islands:mounted", { detail: { el: this.el } }),
+      );
+
       this._cancelHydration = scheduleHydration(this.el, async () => {
         this._Component = await app.resolve(componentName);
         const isSSR = this.el.getAttribute("data-ssr") === "true";

@@ -14,12 +14,13 @@ defmodule LiveIslandsTest do
     def mixed_component(assigns) do
       ~H"""
       <div>
-        <.react id="react-card" name="ReactCard" title="React" client={:visible} />
+        <.react id="react-card" name="ReactCard" title="React" client={:visible} prefetch={:idle} />
         <.vue
           id="vue-card"
           v-component="VueCard"
           count={2}
           client={{:media, "(min-width: 800px)"}}
+          prefetch={{:media, "(min-width: 1024px)"}}
           v-on:click={JS.push("save")}
         >
           Vue body
@@ -38,6 +39,7 @@ defmodule LiveIslandsTest do
       assert island.props == %{"title" => "React"}
       assert island.id == "react-card"
       assert island.client == "visible"
+      assert island.prefetch == "idle"
     end
 
     test "renders Vue islands with named slots and handlers" do
@@ -51,6 +53,8 @@ defmodule LiveIslandsTest do
       assert island.handlers == %{"click" => [["push", %{"event" => "save"}]]}
       assert island.client == "media"
       assert island.client_media == "(min-width: 800px)"
+      assert island.prefetch == "media"
+      assert island.prefetch_media == "(min-width: 1024px)"
     end
   end
 end

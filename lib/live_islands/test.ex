@@ -101,6 +101,8 @@ defmodule LiveIslands.Test do
         slots: extract_base64_slots(attr(island, "data-slots")),
         client: attr(island, "data-client"),
         client_media: attr(island, "data-client-media"),
+        prefetch: attr(island, "data-prefetch"),
+        prefetch_media: attr(island, "data-prefetch-media"),
         ssr: attr(island, "data-ssr") == "true",
         class: attr(island, "class")
       }

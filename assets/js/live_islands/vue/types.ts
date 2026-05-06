@@ -95,6 +95,7 @@ export type VueIslandOptions = {
 export type VueIslandApp = {
   setup: (context: SetupContext) => App;
   resolve: (path: string) => ComponentOrComponentPromise;
+  preload: (path: string) => ComponentOrComponentPromise;
 };
 
 export interface VueIslandHooks {

@@ -15,6 +15,7 @@ export type ReactIslandOptions = {
 
 export function createReactIsland(options: ReactIslandOptions): {
   resolve: (name: string) => Promise<React.ComponentType<any>>;
+  preload: (name: string) => Promise<React.ComponentType<any>>;
 };
 
 export interface LiveProps {

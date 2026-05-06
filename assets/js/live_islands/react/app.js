@@ -15,11 +15,13 @@ export const createReactIsland = ({ resolve, availableComponents }) => {
   const available = availableComponentNames(
     availableComponents || resolve.availableComponents,
   );
+  const resolved = new Map();
 
-  return {
-    resolve: async (name) => {
+  const load = async (name) => {
+    if (resolved.has(name)) return resolved.get(name);
+
+    const promise = (async () => {
       let component;
-
       try {
         component = resolve(name);
 
@@ -49,7 +51,21 @@ export const createReactIsland = ({ resolve, availableComponents }) => {
       }
 
       return component;
-    },
+    })();
+
+    resolved.set(name, promise);
+
+    try {
+      return await promise;
+    } catch (error) {
+      resolved.delete(name);
+      throw error;
+    }
+  };
+
+  return {
+    resolve: load,
+    preload: load,
   };
 };
 

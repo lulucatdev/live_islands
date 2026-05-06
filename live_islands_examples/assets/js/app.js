@@ -25,7 +25,11 @@ import vueComponents from "../vue-components";
 import { getIslandHooks } from "live_islands";
 import "../css/app.css";
 
-const hooks = getIslandHooks({ react: reactComponents, vue: vueComponents });
+const hooks = getIslandHooks({
+  react: reactComponents,
+  vue: vueComponents,
+  prefetch: true,
+});
 
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")

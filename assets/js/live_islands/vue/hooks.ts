@@ -35,6 +35,10 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
     if (elementId) hooksById.set(elementId, this as LiveHook);
     syncSlots(elementId);
 
+    window.dispatchEvent(
+      new CustomEvent("live-islands:mounted", { detail: { el } }),
+    );
+
     this.vue.cancelHydration = scheduleHydration(el, async () => {
       const component = await resolve(componentName);
 

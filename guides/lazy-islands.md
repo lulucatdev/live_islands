@@ -21,6 +21,32 @@ The page still arrives as LiveView-rendered HTML. Each island then decides when 
 
 These strategies are per-island, so a page can hydrate a small navigation island immediately and defer a heavy chart until it is visible.
 
+## Page-Aware Prefetch
+
+Hydration decides when an island mounts. Prefetch decides when its component module is loaded into the browser cache.
+
+Enable the page-aware prefetch runtime next to your hooks:
+
+```js
+const hooks = getIslandHooks({
+  react: reactComponents,
+  vue: vueComponents,
+  prefetch: true,
+});
+```
+
+Then annotate islands with `prefetch`:
+
+```heex
+<.react name="Chart" client={:visible} prefetch={:idle} />
+<.vue v-component="Filters" client={:idle} prefetch={:hover} />
+<.react name="WideMap" client={:visible} prefetch={{:media, "(min-width: 1024px)"}} />
+```
+
+Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `{:media, query}`, and `:none`.
+
+The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early.
+
 ## Async Component Registries
 
 React and Vue can both resolve components asynchronously. This lets Vite split component files into separate chunks and load only the islands present on the current page.

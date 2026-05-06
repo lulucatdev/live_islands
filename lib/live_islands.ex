@@ -16,18 +16,22 @@ defmodule LiveIslands do
   alias Phoenix.LiveView
   alias Phoenix.LiveView.LiveStream
 
-  @react_special_keys ~w(id class ssr diff name socket client client_media __changed__ __given__)a
+  @react_special_keys ~w(id class ssr diff name socket client client_media prefetch prefetch_media __changed__ __given__)a
   @vue_special_keys [
     :id,
     :class,
     :client,
     :client_media,
+    :prefetch,
+    :prefetch_media,
     :"v-ssr",
     :"v-diff",
     :"v-component",
     :"v-socket",
     :"v-client",
     :"v-client-media",
+    :"v-prefetch",
+    :"v-prefetch-media",
     :"v-inject",
     :__changed__,
     :__given__
@@ -50,6 +54,10 @@ defmodule LiveIslands do
     * `:visible` hydrates when the island enters the viewport.
     * `{:media, query}` hydrates when a media query matches.
     * `:none` skips client hydration for SSR-only static islands.
+
+  Use `prefetch` to load the component module before hydration without mounting
+  the island. Supported values are `:load`, `:idle`, `:visible`, `:hover`,
+  `:tap`, `{:media, query}`, and `:none`.
   """
   def react(assigns) do
     render_island(assigns, %{
@@ -64,7 +72,9 @@ defmodule LiveIslands do
       require_component: true,
       inject?: false,
       client_keys: [:client],
-      client_media_keys: [:client_media]
+      client_media_keys: [:client_media],
+      prefetch_keys: [:prefetch],
+      prefetch_media_keys: [:prefetch_media]
     })
   end
 
@@ -77,6 +87,7 @@ defmodule LiveIslands do
     * `v-socket` passes the LiveView socket.
     * `v-ssr` and `v-diff` control SSR and prop diffing.
     * `client` or `v-client` controls hydration timing.
+    * `prefetch` or `v-prefetch` controls module prefetch timing.
     * `v-on:*` attaches LiveView JS event handlers.
     * `v-inject` and `v-inject:*` render the island into another Vue island slot.
   """
@@ -93,7 +104,9 @@ defmodule LiveIslands do
       require_component: false,
       inject?: true,
       client_keys: [:client, :"v-client"],
-      client_media_keys: [:client_media, :"v-client-media"]
+      client_media_keys: [:client_media, :"v-client-media"],
+      prefetch_keys: [:prefetch, :"v-prefetch"],
+      prefetch_media_keys: [:prefetch_media, :"v-prefetch-media"]
     })
   end
 
@@ -105,6 +118,7 @@ defmodule LiveIslands do
     use_streams_diff = Enum.any?(assigns, fn {_key, value} -> match?(%LiveStream{}, value) end)
     component_name = Map.get(assigns, config.component_key)
     {client, client_media} = client_config(assigns, config)
+    {prefetch, prefetch_media} = prefetch_config(assigns, config)
 
     render_ssr? =
       init and dead and Map.get(assigns, config.ssr_key, ssr_default()) and component_name
@@ -145,6 +159,8 @@ defmodule LiveIslands do
       |> Map.put(:use_diff, use_diff)
       |> Map.put(:client, client)
       |> Map.put(:client_media, client_media)
+      |> Map.put(:prefetch, prefetch)
+      |> Map.put(:prefetch_media, prefetch_media)
       |> Map.put(:inject_target, inject_target)
       |> Map.put(:inject_slot, inject_slot)
 
@@ -190,6 +206,8 @@ defmodule LiveIslands do
       data-slots={"#{@slots |> Slots.base_encode_64() |> json}"}
       data-client={@client}
       data-client-media={@client_media}
+      data-prefetch={@prefetch}
+      data-prefetch-media={@prefetch_media}
       data-ssr={@ssr?}
       data-inject={@inject_target}
       data-inject-slot={@inject_slot}
@@ -256,6 +274,50 @@ defmodule LiveIslands do
   defp normalize_client(value) do
     raise ArgumentError,
           "LiveIslands client must be :load, :idle, :visible, :none, {:media, query}, or a matching string; got #{inspect(value)}"
+  end
+
+  defp prefetch_config(assigns, config) do
+    prefetch =
+      config.prefetch_keys
+      |> Enum.find_value(&Map.get(assigns, &1))
+      |> normalize_prefetch()
+
+    media =
+      config.prefetch_media_keys
+      |> Enum.find_value(&Map.get(assigns, &1))
+
+    case prefetch do
+      {:media, query} -> {"media", query}
+      mode -> {mode, media}
+    end
+  end
+
+  defp normalize_prefetch(nil), do: nil
+  defp normalize_prefetch(true), do: "visible"
+  defp normalize_prefetch(false), do: "none"
+  defp normalize_prefetch(:load), do: "load"
+  defp normalize_prefetch(:eager), do: "load"
+  defp normalize_prefetch(:idle), do: "idle"
+  defp normalize_prefetch(:visible), do: "visible"
+  defp normalize_prefetch(:viewport), do: "visible"
+  defp normalize_prefetch(:hover), do: "hover"
+  defp normalize_prefetch(:tap), do: "tap"
+  defp normalize_prefetch(:none), do: "none"
+  defp normalize_prefetch({:media, query}), do: {:media, query}
+  defp normalize_prefetch({"media", query}), do: {:media, query}
+  defp normalize_prefetch("load"), do: "load"
+  defp normalize_prefetch("eager"), do: "load"
+  defp normalize_prefetch("idle"), do: "idle"
+  defp normalize_prefetch("visible"), do: "visible"
+  defp normalize_prefetch("viewport"), do: "visible"
+  defp normalize_prefetch("hover"), do: "hover"
+  defp normalize_prefetch("tap"), do: "tap"
+  defp normalize_prefetch("none"), do: "none"
+  defp normalize_prefetch("media"), do: "media"
+
+  defp normalize_prefetch(value) do
+    raise ArgumentError,
+          "LiveIslands prefetch must be :load, :idle, :visible, :hover, :tap, :none, {:media, query}, or a matching string; got #{inspect(value)}"
   end
 
   defp calculate_props_diff(props, %{__changed__: changed}) do

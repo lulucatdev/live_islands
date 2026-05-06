@@ -87,10 +87,12 @@ export const createVueIsland = ({
   }
 
   const available = availableComponentNames(availableComponents);
+  const resolved = new Map<string, Promise<Component>>();
 
-  return {
-    setup: setup || defaultSetup,
-    resolve: async (path: string): Promise<Component> => {
+  const load = async (path: string): Promise<Component> => {
+    if (resolved.has(path)) return resolved.get(path) as Promise<Component>;
+
+    const promise = (async () => {
       let component: ComponentOrComponentPromise | undefined | null;
 
       try {
@@ -106,6 +108,21 @@ export const createVueIsland = ({
       } catch (error) {
         throw componentLoadError("vue", path, error, available);
       }
-    },
+    })();
+
+    resolved.set(path, promise);
+
+    try {
+      return await promise;
+    } catch (error) {
+      resolved.delete(path);
+      throw error;
+    }
+  };
+
+  return {
+    setup: setup || defaultSetup,
+    resolve: load,
+    preload: load,
   };
 };
