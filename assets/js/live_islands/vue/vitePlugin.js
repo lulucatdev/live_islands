@@ -63,16 +63,16 @@ const jsonMiddleware = (req, res, next) => {
 };
 
 /**
- * LiveVue Vite plugin for SSR and hot reload support
+ * LiveIslands Vue Vite plugin for SSR and hot reload support
  * @param {PluginOptions} [opts]
  * @returns {import("vite").Plugin}
  */
-function liveVuePlugin(opts = {}) {
+function liveIslandsVuePlugin(opts = {}) {
   /** @type {import("vite").ResolvedConfig | undefined} */
   let config;
 
   return {
-    name: "live-vue",
+    name: "live-islands-vue",
     enforce: "pre",
     configResolved(resolvedConfig) {
       config = resolvedConfig;
@@ -80,7 +80,7 @@ function liveVuePlugin(opts = {}) {
     resolveId(id) {
       if (id === ssrManifestModuleId) return resolvedSsrManifestModuleId;
       // vue/server-renderer imports node:stream for its streaming API (renderToNodeStream),
-      // but LiveVue only uses renderToString. Stub it out so the SSR bundle is self-contained
+      // but LiveIslands Vue only uses renderToString. Stub it out so the SSR bundle is self-contained
       // and can run in non-Node runtimes like QuickBEAM.
       if (config?.build?.ssr && id === "node:stream")
         return "\0stub:node:stream";
@@ -147,7 +147,7 @@ function liveVuePlugin(opts = {}) {
 
       const path = opts.path || "/ssr_render";
       const entrypoint = opts.entrypoint || "./js/server.js";
-      server.middlewares.use(function liveVueMiddleware(req, res, next) {
+      server.middlewares.use(function liveIslandsVueMiddleware(req, res, next) {
         if (req.method == "POST" && req.url?.split("?", 1)[0] === path) {
           jsonMiddleware(req, res, async () => {
             try {
@@ -171,4 +171,4 @@ function liveVuePlugin(opts = {}) {
   };
 }
 
-export default liveVuePlugin;
+export default liveIslandsVuePlugin;

@@ -1,6 +1,8 @@
 defmodule LiveIslands.Installer do
   @moduledoc false
 
+  @hooks_expression "getIslandHooks({react: reactComponents, vue: vueComponents})"
+
   @doc false
   def dependency_path do
     Mix.Project.deps_paths(depth: 1)
@@ -43,8 +45,9 @@ defmodule LiveIslands.Installer do
   @doc false
   def patch_app_js(content) do
     content
-    |> ensure_import(~s(import components from "../react-components";))
-    |> ensure_import(~s(import { getHooks } from "live_islands/react";))
+    |> ensure_import(~s(import reactComponents from "../react-components";))
+    |> ensure_import(~s(import vueComponents from "../vue-components";))
+    |> ensure_import(~s(import { getIslandHooks } from "live_islands";))
     |> ensure_live_socket_hooks()
   end
 
@@ -117,19 +120,19 @@ defmodule LiveIslands.Installer do
 
   defp ensure_live_socket_hooks(content) do
     cond do
-      String.contains?(content, "getHooks(components)") ->
+      String.contains?(content, "getIslandHooks({") ->
         content
 
       Regex.match?(~r/hooks:\s*([^,\n]+),/, content) ->
         Regex.replace(~r/hooks:\s*([^,\n]+),/, content, fn _match, hooks ->
-          "hooks: {...#{String.trim(hooks)}, ...getHooks(components)},"
+          "hooks: {...#{String.trim(hooks)}, ...#{@hooks_expression}},"
         end)
 
       true ->
         String.replace(
           content,
           ~r/(new LiveSocket\([^,]+,\s*Socket,\s*\{)/,
-          "\\1\n  hooks: getHooks(components),"
+          "\\1\n  hooks: #{@hooks_expression},"
         )
     end
   end

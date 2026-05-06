@@ -1,5 +1,5 @@
 priv/
-live_react_examples/deps/
+live_islands_examples/deps/
 deps/
 doc/
 .elixir_ls

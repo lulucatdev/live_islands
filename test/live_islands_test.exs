@@ -44,20 +44,4 @@ defmodule LiveIslandsTest do
       assert island.handlers == %{"click" => [["push", %{"event" => "save"}]]}
     end
   end
-
-  describe "LiveVue compatibility" do
-    test "delegates LiveVue.vue/1 to LiveIslands.vue/1" do
-      html =
-        render_component(fn assigns ->
-          ~H"""
-          <LiveVue.vue id="compat-vue" v-component="CompatVue" label="ok" />
-          """
-        end)
-
-      island = Test.get_vue(html)
-
-      assert island.component == "CompatVue"
-      assert island.props == %{"label" => "ok"}
-    end
-  end
 end

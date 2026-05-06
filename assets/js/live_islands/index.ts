@@ -1,9 +1,8 @@
-import { getHooks as getReactHooks } from "./react/index.mjs";
-import { getHooks as getVueHooks } from "./vue/index.ts";
+import { getHooks as getReactHooks } from "./react/hooks.js";
+import { getHooks as getVueHooks } from "./vue/index.js";
 
-export { getReactHooks };
-export { getHooks } from "./react/index.mjs";
-export { Link } from "./react/link.jsx";
+export { getReactHooks, getVueHooks };
+export { Link as ReactLink } from "./react/link.jsx";
 export {
   LiveFormProvider,
   useArrayField,
@@ -13,12 +12,12 @@ export {
   useLiveEvent,
   useLiveForm,
   useLiveNavigation,
-  useLiveReact,
   useLiveUpload,
+  useReactIsland,
 } from "./react/context.jsx";
 
 export {
-  createLiveVue,
+  createVueIsland,
   findComponent,
   Link as VueLink,
   useArrayField as useVueArrayField,
@@ -29,11 +28,13 @@ export {
   useLiveForm as useVueLiveForm,
   useLiveNavigation as useVueLiveNavigation,
   useLiveUpload as useVueLiveUpload,
-  useLiveVue,
-} from "./vue/index.ts";
-export { getVueHooks };
+  useVueIsland,
+} from "./vue/index.js";
 
-export function getIslandHooks({ react, vue } = {}) {
+export function getIslandHooks({
+  react,
+  vue,
+}: { react?: any; vue?: any } = {}) {
   return {
     ...(react ? getReactHooks(react) : {}),
     ...(vue ? getVueHooks(vue) : {}),

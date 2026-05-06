@@ -42,7 +42,7 @@ defmodule LiveIslands do
   def react(assigns) do
     render_island(assigns, %{
       framework: :react,
-      hook: "ReactHook",
+      hook: "LiveIslandsReactHook",
       component_key: :name,
       socket_key: :socket,
       ssr_key: :ssr,
@@ -57,7 +57,7 @@ defmodule LiveIslands do
   @doc """
   Renders a Vue island.
 
-  Vue-specific attributes follow LiveVue's naming:
+  Vue-specific attributes use the `v-*` convention:
 
     * `v-component` selects the component.
     * `v-socket` passes the LiveView socket.
@@ -68,7 +68,7 @@ defmodule LiveIslands do
   def vue(assigns) do
     render_island(assigns, %{
       framework: :vue,
-      hook: "VueHook",
+      hook: "LiveIslandsVueHook",
       component_key: :"v-component",
       socket_key: :"v-socket",
       ssr_key: :"v-ssr",

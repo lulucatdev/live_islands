@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
 const exampleCwd = fileURLToPath(
-  new URL("../../live_react_examples", import.meta.url),
+  new URL("../../live_islands_examples", import.meta.url),
 );
 const port = process.env.E2E_PORT || "4000";
 const vitePort = process.env.E2E_VITE_PORT || "5173";

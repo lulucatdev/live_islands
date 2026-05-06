@@ -8,7 +8,7 @@ export {
   useLiveEvent,
   useLiveForm,
   useLiveNavigation,
-  useLiveReact,
   useLiveUpload,
+  useReactIsland,
 } from "./context";
 export { Link } from "./link.jsx";

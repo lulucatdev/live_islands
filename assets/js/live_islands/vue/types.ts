@@ -85,16 +85,16 @@ export interface SetupContext {
   ssr: boolean;
 }
 
-export type LiveVueOptions = {
+export type VueIslandOptions = {
   resolve: (path: string) => ComponentOrComponentPromise | undefined | null;
   setup?: (context: SetupContext) => App;
 };
 
-export type LiveVueApp = {
+export type VueIslandApp = {
   setup: (context: SetupContext) => App;
   resolve: (path: string) => ComponentOrComponentPromise;
 };
 
-export interface LiveVue {
-  VueHook: ViewHook;
+export interface VueIslandHooks {
+  LiveIslandsVueHook: ViewHook;
 }

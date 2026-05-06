@@ -17,29 +17,29 @@ import type {
   UploadOptions,
 } from "./types.js";
 
-export const liveInjectKey = "_live_vue";
+export const vueIslandInjectKey = "_live_islands_vue";
 export const hooksById = new Map<string, LiveHook>();
 
 /**
- * Returns the LiveVue hook instance.
- * Can be used to access the LiveVue instance from within a LiveVue component.
+ * Returns the LiveIslands Vue hook instance.
+ * Can be used to access the LiveIslands Vue instance from within a LiveIslands Vue component.
  * It allows to e.g. push events to the LiveView.
  *
  * When called with an element ID, returns the hook attached to that element,
  * giving access to another component's reactive props, slots, and LiveView connection.
  *
- * @param elementId - Optional ID of a LiveVue element to look up.
+ * @param elementId - Optional ID of a LiveIslands Vue element to look up.
  */
-export function useLiveVue(): LiveHook;
-export function useLiveVue(elementId: string): LiveHook | null;
-export function useLiveVue(elementId?: string): LiveHook | null {
+export function useVueIsland(): LiveHook;
+export function useVueIsland(elementId: string): LiveHook | null;
+export function useVueIsland(elementId?: string): LiveHook | null {
   if (elementId) {
     return hooksById.get(elementId) ?? null;
   }
-  const live = inject<LiveHook>(liveInjectKey);
+  const live = inject<LiveHook>(vueIslandInjectKey);
   if (!live)
     throw new Error(
-      "LiveVue not provided. Are you using this inside a LiveVue component?",
+      "LiveIslands Vue not provided. Are you using this inside a LiveIslands Vue component?",
     );
   return live;
 }
@@ -53,11 +53,11 @@ export function useLiveVue(elementId?: string): LiveHook | null {
 export function useLiveEvent<T>(event: string, callback: (data: T) => void) {
   let callbackRef: ReturnType<LiveHook["handleEvent"]> | null = null;
   onMounted(() => {
-    const live = useLiveVue();
+    const live = useVueIsland();
     callbackRef = live.handleEvent(event, callback);
   });
   onUnmounted(() => {
-    const live = useLiveVue();
+    const live = useVueIsland();
     if (callbackRef) live.removeHandleEvent(callbackRef);
     callbackRef = null;
   });
@@ -70,7 +70,7 @@ export function useLiveEvent<T>(event: string, callback: (data: T) => void) {
  * @returns An object with `patch` and `navigate` functions.
  */
 export const useLiveNavigation = () => {
-  const live = useLiveVue();
+  const live = useVueIsland();
   const liveSocket = live.liveSocket;
   if (!liveSocket) throw new Error("LiveSocket not initialized");
 
@@ -152,7 +152,7 @@ export const useLiveUpload = (
   uploadConfig: MaybeRefOrGetter<UploadConfig>,
   options: UploadOptions,
 ): UseLiveUploadReturn => {
-  const live = useLiveVue();
+  const live = useVueIsland();
   const inputEl = ref<HTMLInputElement | null>(null);
   let stopSyncInput: (() => void) | null = null;
 
@@ -368,7 +368,7 @@ export const useEventReply = <
   eventName: string,
   options?: UseEventReplyOptions<T>,
 ): UseEventReplyReturn<T, P> => {
-  const live = useLiveVue();
+  const live = useVueIsland();
 
   const data = ref<T | null>(options?.defaultValue ?? null) as Ref<T | null>;
   const isLoading = ref(false);
@@ -445,7 +445,7 @@ export interface UseLiveConnectionReturn {
  * @returns An object with reactive connection state and computed connection status
  */
 export const useLiveConnection = (): UseLiveConnectionReturn => {
-  const live = useLiveVue();
+  const live = useVueIsland();
   const liveSocket = live.liveSocket;
   if (!liveSocket) throw new Error("LiveSocket not initialized");
 

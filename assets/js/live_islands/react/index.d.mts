@@ -125,7 +125,7 @@ export interface UseLiveFormReturn<T extends object> {
   reset: () => void;
 }
 
-export function useLiveReact(): LiveProps;
+export function useReactIsland(): LiveProps;
 export function useLiveEvent<T = any>(
   event: string,
   callback: (data: T) => void,

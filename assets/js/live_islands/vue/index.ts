@@ -1,6 +1,6 @@
 export type {
-  LiveVueApp,
-  LiveVueOptions,
+  VueIslandApp,
+  VueIslandOptions,
   SetupContext,
   VueComponent,
   LiveHook,
@@ -10,10 +10,10 @@ export type {
   UploadOptions,
   AsyncResult,
 } from "./types.js";
-export { createLiveVue } from "./app.js";
+export { createVueIsland } from "./app.js";
 export { getHooks } from "./hooks.js";
 export {
-  useLiveVue,
+  useVueIsland,
   useLiveEvent,
   useLiveNavigation,
   useLiveUpload,

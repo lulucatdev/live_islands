@@ -12,7 +12,7 @@ import {
   type InjectionKey,
   readonly,
 } from "vue";
-import { useLiveVue } from "./use";
+import { useVueIsland } from "./use";
 import {
   parsePath,
   getValueByPath,
@@ -294,7 +294,7 @@ export function useLiveForm<T extends object>(
   });
 
   // LiveView integration
-  const live = useLiveVue();
+  const live = useVueIsland();
 
   // Immediate change handler
   const sendChanges = async (): Promise<any> => {

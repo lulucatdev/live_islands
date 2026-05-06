@@ -8,28 +8,33 @@ import React, {
   useState,
 } from "react";
 
-export const LiveReactContext = createContext(null);
-export const LiveFormContext = createContext(null);
+const contextStoreKey = "__live_islands_react_contexts__";
+const contextStore = (globalThis[contextStoreKey] ||= {});
 
-export function LiveReactProvider({ children, ...props }) {
+export const ReactIslandContext = (contextStore.ReactIslandContext ||=
+  createContext(null));
+export const LiveFormContext = (contextStore.LiveFormContext ||=
+  createContext(null));
+
+export function ReactIslandProvider({ children, ...props }) {
   return (
-    <LiveReactContext.Provider value={props}>
+    <ReactIslandContext.Provider value={props}>
       {children}
-    </LiveReactContext.Provider>
+    </ReactIslandContext.Provider>
   );
 }
 
-export function useLiveReact() {
-  const live = useContext(LiveReactContext);
+export function useReactIsland() {
+  const live = useContext(ReactIslandContext);
   if (!live)
     throw new Error(
-      "LiveReact not provided. Use this hook inside a LiveReact component.",
+      "React island context not provided. Use this hook inside a LiveIslands React component.",
     );
   return live;
 }
 
 export function useLiveEvent(event, callback) {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const callbackRef = useRef(callback);
 
   useEffect(() => {
@@ -47,7 +52,7 @@ export function useLiveEvent(event, callback) {
 }
 
 export function useLiveNavigation() {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const liveSocket = live.liveSocket;
   if (!liveSocket) throw new Error("LiveSocket not initialized");
 
@@ -90,7 +95,7 @@ export function useLiveNavigation() {
 }
 
 export function useEventReply(eventName, options = {}) {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const [data, setData] = useState(options.defaultValue ?? null);
   const [isLoading, setIsLoading] = useState(false);
   const isLoadingRef = useRef(false);
@@ -149,7 +154,7 @@ export function useEventReply(eventName, options = {}) {
 }
 
 export function useLiveConnection() {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const liveSocket = live.liveSocket;
   if (!liveSocket) throw new Error("LiveSocket not initialized");
 
@@ -180,7 +185,7 @@ export function useLiveConnection() {
 }
 
 export function useLiveUpload(uploadConfig, options = {}) {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const inputEl = useRef(null);
   const config = resolveValue(uploadConfig) || {};
   const configSignature = JSON.stringify(config);
@@ -286,7 +291,7 @@ export function useLiveUpload(uploadConfig, options = {}) {
 }
 
 export function useLiveForm(form, options = {}) {
-  const live = useLiveReact();
+  const live = useReactIsland();
   const {
     changeEvent = null,
     submitEvent = "submit",

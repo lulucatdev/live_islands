@@ -86,7 +86,7 @@ defmodule LiveIslands.Test do
       island =
         html
         |> Floki.parse_document!()
-        |> Floki.find("[phx-hook='ReactHook'], [phx-hook='VueHook']")
+        |> Floki.find("[phx-hook='LiveIslandsReactHook'], [phx-hook='LiveIslandsVueHook']")
         |> find_component!(opts)
 
       %{

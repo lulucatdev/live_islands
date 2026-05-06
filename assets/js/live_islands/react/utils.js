@@ -1,5 +1,5 @@
 import React from "react";
-import { LiveReactProvider } from "./context";
+import { ReactIslandProvider } from "./context";
 
 function getHooks(props) {
   return {
@@ -23,7 +23,7 @@ export function getComponentTree(
   const componentInstance = React.createElement(Component, props, ...children);
 
   return React.createElement(
-    LiveReactProvider,
+    ReactIslandProvider,
     getHooks(liveContext),
     componentInstance,
   );

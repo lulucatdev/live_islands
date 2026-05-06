@@ -3,9 +3,9 @@ import type {
   ComponentOrComponentModule,
   ComponentOrComponentPromise,
   SetupContext,
-  LiveVueOptions,
+  VueIslandOptions,
   ComponentMap,
-  LiveVueApp,
+  VueIslandApp,
 } from "./types.js";
 
 /**
@@ -27,17 +27,14 @@ export const defaultSetup = ({
   return app;
 };
 
-export const migrateToLiveVueApp = (
-  components: ComponentMap,
+export const normalizeVueIslandApp = (
+  components: ComponentMap | VueIslandOptions | VueIslandApp,
   options: { initializeApp?: (context: SetupContext) => App } = {},
-): LiveVueApp => {
-  if ("resolve" in components && "setup" in components) {
-    return components as LiveVueApp;
+): VueIslandApp => {
+  if ("resolve" in components) {
+    return createVueIsland(components as VueIslandOptions);
   } else {
-    console.warn(
-      "deprecation warning:\n\nInstead of passing components, use createLiveVue({resolve, setup})",
-    );
-    return createLiveVue({
+    return createVueIsland({
       resolve: (name: string) => {
         for (const [key, value] of Object.entries(components)) {
           if (
@@ -73,7 +70,7 @@ const resolveComponent = async (
   return component;
 };
 
-export const createLiveVue = ({ resolve, setup }: LiveVueOptions) => {
+export const createVueIsland = ({ resolve, setup }: VueIslandOptions) => {
   return {
     setup: setup || defaultSetup,
     resolve: async (path: string): Promise<Component> => {

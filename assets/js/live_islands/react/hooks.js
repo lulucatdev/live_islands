@@ -73,7 +73,7 @@ function getHandlers(hook) {
 }
 
 export function getHooks(components) {
-  const ReactHook = {
+  const LiveIslandsReactHook = {
     _render() {
       const tree = getComponentTree(
         this._Component,
@@ -148,5 +148,5 @@ export function getHooks(components) {
     },
   };
 
-  return { ReactHook };
+  return { LiveIslandsReactHook };
 }

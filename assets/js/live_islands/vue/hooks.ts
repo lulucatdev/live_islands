@@ -1,13 +1,13 @@
 import { createApp, createSSRApp, reactive, type App } from "vue";
-import { migrateToLiveVueApp } from "./app.js";
+import { normalizeVueIslandApp } from "./app.js";
 import type {
   ComponentMap,
-  LiveVueApp,
-  LiveVueOptions,
+  VueIslandApp,
+  VueIslandOptions,
   LiveHook,
   Hook,
 } from "./types.js";
-import { liveInjectKey, hooksById } from "./use.js";
+import { vueIslandInjectKey, hooksById } from "./use.js";
 import { getProps, getDiff, getElementId } from "./attrs.js";
 import { applyPatch } from "./jsonPatch.js";
 import { registerInjector, unregisterInjector, syncSlots } from "./inject.js";
@@ -15,7 +15,7 @@ import { registerInjector, unregisterInjector, syncSlots } from "./inject.js";
 const shouldHydrate = (el: HTMLElement): boolean =>
   el.getAttribute("data-ssr") === "true" && el.hasChildNodes();
 
-export const getVueHook = ({ resolve, setup }: LiveVueApp): Hook => ({
+export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
   async mounted() {
     const el = this.el as HTMLElement;
     const componentName = el.getAttribute("data-name");
@@ -46,7 +46,7 @@ export const getVueHook = ({ resolve, setup }: LiveVueApp): Hook => ({
       slots: this.vue.slots,
       plugin: {
         install: (app: App) => {
-          app.provide(liveInjectKey, this as LiveHook);
+          app.provide(vueIslandInjectKey, this as LiveHook);
           app.config.globalProperties.$live = this as LiveHook;
         },
       },
@@ -91,23 +91,23 @@ export const getVueHook = ({ resolve, setup }: LiveVueApp): Hook => ({
 });
 
 /**
- * Returns the hooks for the LiveVue app.
+ * Returns the hooks for the LiveIslands Vue app.
  * @param components - The components to use in the app.
- * @param options - The options for the LiveVue app.
- * @returns The hooks for the LiveVue app.
+ * @param options - The options for the LiveIslands Vue app.
+ * @returns The hooks for the LiveIslands Vue app.
  */
-type VueHooks = { VueHook: Hook };
-type getHooksAppFn = (app: LiveVueApp) => VueHooks;
-type getHooksComponentsOptions = { initializeApp?: LiveVueOptions["setup"] };
+type VueIslandHooks = { LiveIslandsVueHook: Hook };
+type getHooksAppFn = (app: VueIslandApp | VueIslandOptions) => VueIslandHooks;
+type getHooksComponentsOptions = { initializeApp?: VueIslandOptions["setup"] };
 type getHooksComponentsFn = (
   components: ComponentMap,
   options?: getHooksComponentsOptions,
-) => VueHooks;
+) => VueIslandHooks;
 
 export const getHooks: getHooksComponentsFn | getHooksAppFn = (
-  componentsOrApp: ComponentMap | LiveVueApp,
+  componentsOrApp: ComponentMap | VueIslandApp,
   options?: getHooksComponentsOptions,
 ) => {
-  const app = migrateToLiveVueApp(componentsOrApp, options ?? {});
-  return { VueHook: getVueHook(app) };
+  const app = normalizeVueIslandApp(componentsOrApp, options ?? {});
+  return { LiveIslandsVueHook: getVueIslandHook(app) };
 };

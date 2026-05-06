@@ -4,7 +4,7 @@ LiveIslands replaces `hex esbuild` with [Vite](https://vite.dev/) for both clien
 
 - Vite provides a best-in-class Hot-Reload functionality and offers [many benefits](https://vitejs.dev/guide/why#why-vite) not present in esbuild
 - `hex esbuild` package doesn't support plugins, while it's possible to do ssr with `hex esbuild` (check [v0.2.0-rc-0](https://github.com/lulucatdev/live_islands/tree/v0.2.0-rc.0)) the SSR in development is broken.
-- the integration to react and ssr is more documented with Vite
+- React, Vue, and SSR integration are easier to keep in one Vite pipeline
 
 In production, we'll use [elixir-nodejs](https://github.com/revelrylabs/elixir-nodejs) for SSR. If you don't need SSR, you can disable it with one line of code. TypeScript will be supported as well.
 
@@ -65,7 +65,7 @@ It will create:
 - `package.json`
 - vite, typescript and postcss configs
 - server entrypoint
-- react components root
+- React and Vue component roots
 
 6. Run the following in your terminal
 
@@ -75,21 +75,17 @@ mix live_islands.install
 npm install --prefix assets
 ```
 
-The older `mix live_islands.setup` task remains available when you only want to copy the asset templates.
-
 7. Confirm that your `assets/js/app.js` file contains the LiveIslands hooks
 
 ```javascript
 ...
 import topbar from "topbar" // instead of ../vendor/topbar
-import { getHooks } from  "live_islands/react";
-import components from "../react-components";
+import { getIslandHooks } from "live_islands";
+import reactComponents from "../react-components";
+import vueComponents from "../vue-components";
 import "../css/app.css" // the css file is handled by vite
 
-const hooks = {
-  // ... your other hooks
-  ...getHooks(components),
-};
+const hooks = getIslandHooks({ react: reactComponents, vue: vueComponents });
 
 ...
 
@@ -107,7 +103,8 @@ let liveSocket = new LiveSocket("/live", Socket, {
 content: [
   ...
     "./react-components/**/*.jsx", // <- if you are using jsx
-    "./react-components/**/*.tsx" // <- if you are using tsx
+    "./react-components/**/*.tsx", // <- if you are using tsx
+    "./vue-components/**/*.vue"
 ],
 
 ```
@@ -174,10 +171,11 @@ children = [
 ]
 ```
 
-13. Confirm everything is working by rendering the default React component anywhere in your Dead or Live Views
+13. Confirm everything is working by rendering the default React and Vue components anywhere in your Dead or Live Views
 
 ```elixir
 <.react name="Simple" />
+<.vue v-component="status" message="Vue island ready" />
 ```
 
 You can also use the built-in Link component for LiveView navigation:
@@ -227,7 +225,7 @@ config :my_app, MyAppWeb.Endpoint,
   ]
 ```
 
-At this point the Phoenix application can render React components through LiveIslands.
+At this point the Phoenix application can render React and Vue components through LiveIslands.
 
 ## Adjusting your own package.json
 
@@ -237,7 +235,7 @@ Install these packages
 cd assets
 
 # vite
-npm install -D vite @vitejs/plugin-react
+npm install -D vite @vitejs/plugin-react @vitejs/plugin-vue
 
 # tailwind
 npm install -D @tailwindcss/forms @tailwindcss/postcss @tailwindcss/vite
@@ -246,7 +244,7 @@ npm install -D @tailwindcss/forms @tailwindcss/postcss @tailwindcss/vite
 npm install -D typescript @types/react @types/react-dom
 
 # runtime dependencies
-npm install --save react react-dom topbar ../deps/live_islands ../deps/phoenix ../deps/phoenix_html ../deps/phoenix_live_view
+npm install --save react react-dom vue topbar ../deps/live_islands ../deps/phoenix ../deps/phoenix_html ../deps/phoenix_live_view
 
 # remove topbar from vendor, since we'll use it from node_modules
 rm vendor/topbar.js
@@ -261,7 +259,7 @@ and add these scripts used by watcher and `mix assets.build` command
   "scripts": {
     "dev": "vite --host -l warn",
     "build": "tsc && vite build",
-    "build-server": "tsc && vite build --ssr js/server.js --out-dir ../priv/react-components --minify esbuild && echo '{\"type\": \"module\" } ' > ../priv/react-components/package.json"
+    "build-server": "tsc && vite build --ssr js/server.js --out-dir ../priv/island-components --minify esbuild && echo '{\"type\": \"module\" } ' > ../priv/island-components/package.json"
   }
 }
 ```

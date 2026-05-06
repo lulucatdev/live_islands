@@ -27,7 +27,8 @@ export const decodeCompactPatch = (payload: string | null): Operation[] => {
     }
 
     const op = opByCode[code];
-    if (!op) throw new Error(`Unknown LiveVue patch operation code: ${code}`);
+    if (!op)
+      throw new Error(`Unknown LiveIslands Vue patch operation code: ${code}`);
 
     const pathLength = readLength(payload, offset);
     offset = pathLength.offset;
@@ -82,7 +83,7 @@ const readValue = (
       };
     }
     default:
-      throw new Error(`Unknown LiveVue patch value tag: ${tag}`);
+      throw new Error(`Unknown LiveIslands Vue patch value tag: ${tag}`);
   }
 };
 
@@ -101,7 +102,7 @@ const readLength = (
 ): { value: number; offset: number } => {
   const result = readDigits(payload, offset);
   if (payload[result.offset] !== ":")
-    throw new Error("Invalid LiveVue patch length prefix");
+    throw new Error("Invalid LiveIslands Vue patch length prefix");
   return { value: Number(result.value), offset: result.offset + 1 };
 };
 
@@ -137,7 +138,7 @@ const readUtf8Bytes = (
   }
 
   if (bytes !== byteLength)
-    throw new Error("Invalid LiveVue patch UTF-8 byte length");
+    throw new Error("Invalid LiveIslands Vue patch UTF-8 byte length");
 
   return { value: payload.slice(offset, end), offset: end };
 };

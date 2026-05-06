@@ -29,7 +29,7 @@ export function decodeCompactPatch(payload) {
     const op = opByCode[code];
     if (!op)
       throw new OperationError(
-        `Unknown LiveReact patch operation code: ${code}`,
+        `Unknown LiveIslands patch operation code: ${code}`,
       );
 
     const pathLength = readLength(payload, offset);
@@ -83,7 +83,7 @@ function readValue(payload, offset) {
       };
     }
     default:
-      throw new OperationError(`Unknown LiveReact patch value tag: ${tag}`);
+      throw new OperationError(`Unknown LiveIslands patch value tag: ${tag}`);
   }
 }
 
@@ -96,7 +96,7 @@ function readLengthPrefixed(payload, offset) {
 function readLength(payload, offset) {
   const result = readDigits(payload, offset);
   if (payload[result.offset] !== ":")
-    throw new OperationError("Invalid LiveReact patch length prefix");
+    throw new OperationError("Invalid LiveIslands patch length prefix");
   return { value: Number(result.value), offset: result.offset + 1 };
 }
 
@@ -126,7 +126,7 @@ function readUtf8Bytes(payload, offset, byteLength) {
   }
 
   if (bytes !== byteLength)
-    throw new OperationError("Invalid LiveReact patch UTF-8 byte length");
+    throw new OperationError("Invalid LiveIslands patch UTF-8 byte length");
 
   return { value: payload.slice(offset, end), offset: end };
 }

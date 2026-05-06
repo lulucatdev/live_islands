@@ -2,22 +2,21 @@
 
 React and Vue component islands inside Phoenix LiveView.
 
-LiveIslands is the maintained fork of `live_react` that is being refactored into a framework-neutral island layer. The package keeps the existing React integration available while adding a Vue adapter based on the `live_vue` capability model.
+LiveIslands is a framework-neutral island layer for rendering client components from Phoenix LiveView. It exposes first-class React and Vue adapters under a single Elixir package and a single JavaScript package.
 
 ## Features
 
 - React and Vue component entrypoints: `LiveIslands.react/1` and `LiveIslands.vue/1`
 - Shared prop encoding, compact patch serialization, LiveStream patches, and event handler metadata
 - React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
-- Vue composables ported from LiveVue, including events, navigation, forms, uploads, connection state, and slot injection
+- Vue composables for events, navigation, forms, uploads, connection state, and slot injection
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
-- Compatibility modules for existing `LiveReact` usage during migration
 
 ## Package Exports
 
 ```js
-import { getHooks } from "live_islands/react";
-import { getHooks as getVueHooks, createLiveVue } from "live_islands/vue";
+import { getHooks as getReactHooks } from "live_islands/react";
+import { getHooks as getVueHooks, createVueIsland } from "live_islands/vue";
 import { getIslandHooks } from "live_islands";
 ```
 
@@ -26,7 +25,7 @@ The root export can combine both frameworks:
 ```js
 const hooks = getIslandHooks({
   react: reactComponents,
-  vue: createLiveVue({ resolve: vueResolver }),
+  vue: createVueIsland({ resolve: vueResolver }),
 });
 ```
 
@@ -60,8 +59,6 @@ end
 mix deps.get
 mix live_islands.install
 ```
-
-The legacy `LiveReact` modules remain in this fork so existing React code can migrate incrementally.
 
 ## Credits
 

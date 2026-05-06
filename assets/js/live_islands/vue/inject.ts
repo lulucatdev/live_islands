@@ -1,6 +1,6 @@
 import { h, provide, defineComponent } from "vue";
 import type { LiveHook } from "./types.js";
-import { liveInjectKey, hooksById } from "./use.js";
+import { vueIslandInjectKey, hooksById } from "./use.js";
 import { getSlots, type SlotMap } from "./attrs.js";
 
 type InjectorEntry = { targetId: string; slotName: string; component: any };
@@ -13,7 +13,7 @@ const getHookSlots = (hook: LiveHook): SlotMap =>
 const renderInjectionSlot = (injectorId: string, component: any) => {
   const wrapper = defineComponent({
     setup(_, { slots: wrappedSlots }) {
-      provide(liveInjectKey, hooksById.get(injectorId)!);
+      provide(vueIslandInjectKey, hooksById.get(injectorId)!);
       return () => wrappedSlots.default?.();
     },
   });

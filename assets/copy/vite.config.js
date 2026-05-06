@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 import react from "@vitejs/plugin-react";
 import vue from "@vitejs/plugin-vue";
-import liveReactPlugin from "live_islands/vite-plugin";
+import liveIslandsPlugin from "live_islands/vite-plugin";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
@@ -13,7 +13,7 @@ export default defineConfig(({ command }) => {
   return {
     base: isDev ? undefined : "/assets",
     publicDir: "static",
-    plugins: [react(), vue(), liveReactPlugin(), tailwindcss()],
+    plugins: [react(), vue(), liveIslandsPlugin(), tailwindcss()],
     ssr: {
       // we need it, because in SSR build we want no external
       // and in dev, we want external for fast updates
@@ -29,7 +29,14 @@ export default defineConfig(({ command }) => {
       // so they're not optimized for development by vite by default
       // we want to enable it for better DX
       // more https://vitejs.dev/guide/dep-pre-bundling#monorepos-and-linked-dependencies
-      include: ["live_islands", "phoenix", "phoenix_html", "phoenix_live_view"],
+      include: [
+        "live_islands",
+        "live_islands/react",
+        "live_islands/vue",
+        "phoenix",
+        "phoenix_html",
+        "phoenix_live_view",
+      ],
     },
     build: {
       commonjsOptions: { transformMixedEsModules: true },

@@ -38,9 +38,9 @@ const jsonMiddleware = (req, res, next) => {
   });
 };
 
-function liveReactPlugin(opts = {}) {
+function liveIslandsReactPlugin(opts = {}) {
   return {
-    name: "live-react",
+    name: "live-islands-react",
     handleHotUpdate({ file, modules, server, timestamp }) {
       if (file.match(/\.(heex|ex)$/)) {
         // if it's and .ex or .heex file, invalidate all related files so they'll be updated correctly
@@ -79,28 +79,30 @@ function liveReactPlugin(opts = {}) {
       // setup SSR endpoint /ssr_render
       const path = opts.path || "/ssr_render";
       const entrypoint = opts.entrypoint || "./js/server.js";
-      server.middlewares.use(function liveReactMiddleware(req, res, next) {
-        if (req.method == "POST" && req.url.split("?", 1)[0] === path) {
-          jsonMiddleware(req, res, async () => {
-            try {
-              const render = (await server.ssrLoadModule(entrypoint)).render;
-              const html = await render(
-                req.body.name,
-                req.body.props,
-                req.body.slots,
-              );
-              res.end(html);
-            } catch (e) {
-              server.ssrFixStacktrace(e);
-              jsonResponse(res, 500, { error: e });
-            }
-          });
-        } else {
-          next();
-        }
-      });
+      server.middlewares.use(
+        function liveIslandsReactMiddleware(req, res, next) {
+          if (req.method == "POST" && req.url.split("?", 1)[0] === path) {
+            jsonMiddleware(req, res, async () => {
+              try {
+                const render = (await server.ssrLoadModule(entrypoint)).render;
+                const html = await render(
+                  req.body.name,
+                  req.body.props,
+                  req.body.slots,
+                );
+                res.end(html);
+              } catch (e) {
+                server.ssrFixStacktrace(e);
+                jsonResponse(res, 500, { error: e });
+              }
+            });
+          } else {
+            next();
+          }
+        },
+      );
     },
   };
 }
 
-module.exports = liveReactPlugin;
+module.exports = liveIslandsReactPlugin;
