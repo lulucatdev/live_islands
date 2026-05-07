@@ -1,0 +1,36 @@
+<main
+  data-live-islands-page="/server-only"
+  data-testid="server-only-zero-js-page"
+  class="mx-auto max-w-5xl space-y-8 px-8 py-10"
+>
+  <section class="space-y-2">
+    <p class="text-sm font-semibold uppercase tracking-wide text-brand">Zero-JS Proof</p>
+    <h1 class="text-3xl font-bold">Server-only islands</h1>
+    <p class="max-w-3xl text-zinc-600">
+      React and Vue are rendered on the server here. They should not mount,
+      hydrate, prefetch, or load their client component chunks.
+    </p>
+  </section>
+
+  <.react_server
+    id="server_only_react_proof"
+    name="BenchmarkStaticReport"
+    metrics={@metrics}
+    sections={@sections}
+  />
+
+  <.vue_server
+    id="server_only_vue_proof"
+    v-component="benchmark-probe"
+    samples={@samples}
+    message="Vue SSR rendered without client hydration"
+  />
+
+  <section
+    data-testid="server-only-proof-summary"
+    class="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-emerald-900"
+  >
+    Server-only proof rendered. Client runtime should report zero hydrated
+    islands for this page.
+  </section>
+</main>

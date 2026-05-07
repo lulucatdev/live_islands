@@ -14,35 +14,6 @@ export {
   getPageIslandManifest,
   setupIslandPrefetch,
 } from "./prefetch.js";
-export { createReactIsland } from "./react/app.js";
-export { Link as ReactLink } from "./react/link.jsx";
-export {
-  LiveFormProvider,
-  useArrayField,
-  useEventReply,
-  useField,
-  useLiveConnection,
-  useLiveEvent,
-  useLiveForm,
-  useLiveNavigation,
-  useLiveUpload,
-  useReactIsland,
-} from "./react/context.jsx";
-
-export {
-  createVueIsland,
-  findComponent,
-  Link as VueLink,
-  useArrayField as useVueArrayField,
-  useEventReply as useVueEventReply,
-  useField as useVueField,
-  useLiveConnection as useVueLiveConnection,
-  useLiveEvent as useVueLiveEvent,
-  useLiveForm as useVueLiveForm,
-  useLiveNavigation as useVueLiveNavigation,
-  useLiveUpload as useVueLiveUpload,
-  useVueIsland,
-} from "./vue/index.js";
 
 type HookMap = Record<string, Record<string, Function>>;
 type HookLoader = () => Promise<Record<string, Function>>;

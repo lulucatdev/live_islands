@@ -19,8 +19,9 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Vite manifest verification for lazy island chunks in production builds
 - Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
+- Server-only zero-JS proofs for hookless React and Vue SSR islands
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
-- Production benchmark suite for initial route bytes, SSR assertions, lazy chunks, KaTeX, and PDF.js
+- Production benchmark suite for initial route bytes, SSR assertions, server-only zero-JS proofs, lazy chunks, KaTeX, and PDF.js
 
 ## Package Exports
 
@@ -44,7 +45,9 @@ Use `live_islands/react/app` for client component registries that only need
 `createReactIsland`; it avoids importing React hooks, context helpers, and Link
 helpers into the page entry.
 
-The root export can combine both frameworks:
+The root export stays framework-neutral. Import framework helpers from
+`live_islands/react`, `live_islands/react/app`, or `live_islands/vue`, then pass
+those registries into `getIslandHooks`:
 
 ```js
 const modules = import.meta.glob("./react-components/**/*.jsx");
@@ -122,7 +125,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, or load React/Vue component chunks, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 

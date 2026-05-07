@@ -56,6 +56,16 @@ defmodule LiveIslandsExamples do
     }
   end
 
+  def demo(:server_only) do
+    %{
+      view_type: "DeadView",
+      raw_view_url: "#{@raw_url}#{@dead_views}/server_only.html.heex",
+      view_url: "#{@url}#{@dead_views}/server_only.html.heex",
+      raw_react_url: "#{@raw_url}#{@react}/benchmark-static-report.jsx",
+      react_url: "#{@url}#{@react}/benchmark-static-report.jsx"
+    }
+  end
+
   def demo(:counter) do
     %{
       raw_view_url: "#{@raw_url}#{@live_views}/counter.ex",

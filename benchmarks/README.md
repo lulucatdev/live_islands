@@ -15,6 +15,7 @@ benchmark routes in Chromium, and records:
 - Vite manifest dynamic island chunks
 - SSR content present in the initial HTML
 - server-only and deferred island hook absence
+- `/server-only` zero-JS evidence: no island hooks, hydration events, prefetch loads, or React/Vue client component chunks
 - deferred server island fallback visibility, final HTML fetch bytes, and final HTML absence from the shell response
 - page-scoped island manifests after route navigation
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
@@ -48,11 +49,11 @@ summary. Result files are ignored by git because byte counts vary by machine,
 Node version, and Phoenix production settings.
 
 Budgets live in `benchmarks/budgets.json`. They intentionally track total
-network bytes, unique URL bytes, app entry bytes, runtime timings, deferred
-island bytes, intent prefetch bytes, and relative release-to-release
+network bytes, unique URL bytes, app entry bytes, runtime timings, server-only
+zero-JS violations, deferred island bytes, intent prefetch bytes, and relative release-to-release
 regressions. This catches duplicate entrypoint loads, real bundle growth, slower
 hydration, slower deferred SSR fetches, premature intent loads, and accidental
-loss of lazy framework loading.
+loss of lazy framework loading or hookless server-only rendering.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
@@ -63,8 +64,8 @@ For release tags, it also publishes stable assets on the GitHub Release:
 
 When the previous release has `live-islands-benchmark.json`, the workflow
 downloads it and runs the new benchmark with `--compare`, so every release can
-show whether initial bytes, heavy interaction bytes, route-flow bytes, and
-intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
+show whether initial bytes, server-only bytes, heavy interaction bytes,
+route-flow bytes, and intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
 to the GitHub Release body under a stable marker, so the release page itself
 shows the current benchmark evidence.
 

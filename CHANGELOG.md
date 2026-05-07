@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.8.0
+
+Server-only zero-JS proofs.
+
+- Added a production `/server-only` example route with React and Vue SSR islands rendered without LiveView hooks or client hydration.
+- Added browser e2e coverage proving the server-only page renders both framework outputs, emits no hydration/prefetch island events, and does not load forbidden React/Vue client chunks.
+- Kept the root `live_islands` JavaScript export framework-neutral so importing `getIslandHooks` does not fetch React/Vue hook adapters before a page needs them.
+- Extended the benchmark result schema with a `serverOnly` page, zero-JS evidence, stability rows, budgets, and release-to-release comparison metrics.
+- Documented the exact zero-JS boundary: server-only islands avoid React/Vue client work while the Phoenix root page may still load its normal app entry.
+
 ## v0.7.0
 
 Intent-aware prefetch and modulepreload evidence.

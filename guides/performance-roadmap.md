@@ -36,7 +36,8 @@ Borrowed from Fresh and Marko.
   do not attach client hooks or framework chunks
 - Runtime: no extra work beyond deferred/prefetch event visibility
 - Tests: static render assertions for `client="none"`, `prefetch="none"`, no
-  `phx-hook`, and no hydration events
-- Benchmarks: page manifest checks, heavy-library absence before user intent,
-  React-only/Vue-only framework isolation, and release-to-release app entry
-  budgets
+  `phx-hook`, no hydration events, no prefetch events, and no forbidden
+  React/Vue client chunk loads
+- Benchmarks: a dedicated `/server-only` production route, server-only byte
+  totals, hook and hydration counts, forbidden chunk counts, sample stability
+  rows, budgets, and release-to-release comparison metrics

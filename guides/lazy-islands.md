@@ -157,6 +157,13 @@ Use `<.react_server>` and `<.vue_server>` when a component should render through
 
 Server-only islands do not attach a LiveView hook and do not use `phx-update="ignore"`, so LiveView can replace their HTML on future renders. This is closer to Nuxt/Astro server islands than to a `client={:none}` hydrated island shell.
 
+The example app includes `/server-only` as a zero-JS proof page. Its e2e test
+and benchmark assertions verify that the React and Vue server-only islands render
+HTML, emit no hydration or prefetch events, and do not load their React/Vue
+client component chunks. The Phoenix root layout may still load the normal app
+entry; the guarantee is that these islands themselves do not pull client
+framework work into the route.
+
 Deferred server islands go one step further: they render fallback HTML in the
 initial response, then fetch final SSR HTML through `LiveIslands.Deferred`.
 Use them when a server-only island is useful but should not block the page shell:

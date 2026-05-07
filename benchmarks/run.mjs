@@ -504,6 +504,20 @@ async function runtimeMetrics(page) {
   });
 }
 
+const serverOnlyForbiddenClientChunk = (url) => {
+  const pathname = new URL(url).pathname;
+
+  return [
+    /\/react\/hooks/,
+    /\/vue\/hooks/,
+    /react-dom/,
+    /runtime-core\.esm/,
+    /\/react-components\/benchmark-static-report/,
+    /\/vue-components\/benchmark-probe/,
+    /\/assets\/(benchmark-static-report|benchmark-probe|hooks-).*\.js$/,
+  ].some((pattern) => pattern.test(pathname));
+};
+
 async function collectPage(browser, pathname, options = {}) {
   const context = await browser.newContext({
     ignoreHTTPSErrors: true,
@@ -595,6 +609,22 @@ async function collectPage(browser, pathname, options = {}) {
     ),
   );
   const runtimeSummary = await runtimeMetrics(page);
+  const zeroJsProof = options.zeroJsProof
+    ? {
+        containsReactProof: html.includes("Server-only executive summary"),
+        containsVueProof: html.includes("Vue benchmark probe"),
+        hookCount: await page
+          .locator("[data-framework][data-name][phx-hook]")
+          .count(),
+        forbiddenClientChunks: initialResponses
+          .filter((response) => serverOnlyForbiddenClientChunk(response.url))
+          .map((response) => ({
+            url: response.url.replace(baseURL, ""),
+            bytes: response.bytes,
+            resourceType: response.resourceType,
+          })),
+      }
+    : null;
 
   await context.close();
 
@@ -605,6 +635,7 @@ async function collectPage(browser, pathname, options = {}) {
     performance: performanceSummary,
     runtime: runtimeSummary,
     modulepreloadLinks,
+    zeroJsProof,
     browserErrors,
     manifest: manifest.map((island) => ({
       page: island.page,
@@ -1009,9 +1040,57 @@ function benchmarkEnvironment(browser) {
 
 function assertBenchmarks(result) {
   const failures = [];
+  const serverOnlyPage = result.pages.serverOnly;
   const benchmarkPage = result.pages.benchmarks;
   const routeFlow = result.flows?.capabilitiesToBenchmarks;
   const intentPrefetch = result.flows?.intentPrefetch;
+
+  if (!serverOnlyPage.zeroJsProof?.containsReactProof) {
+    failures.push("server-only zero-JS page is missing React SSR proof");
+  }
+  if (!serverOnlyPage.zeroJsProof?.containsVueProof) {
+    failures.push("server-only zero-JS page is missing Vue SSR proof");
+  }
+  if (serverOnlyPage.zeroJsProof?.hookCount > 0) {
+    failures.push("server-only zero-JS page rendered LiveView hooks");
+  }
+  if (serverOnlyPage.runtime?.islands?.hydratedCount > 0) {
+    failures.push("server-only zero-JS page emitted hydration events");
+  }
+  if (serverOnlyPage.runtime?.prefetch?.loadedCount > 0) {
+    failures.push("server-only zero-JS page prefetched client chunks");
+  }
+  if (serverOnlyPage.zeroJsProof?.forbiddenClientChunks.length > 0) {
+    failures.push(
+      `server-only zero-JS page loaded forbidden client chunks: ${serverOnlyPage.zeroJsProof.forbiddenClientChunks
+        .map((response) => response.url)
+        .join("; ")}`,
+    );
+  }
+  if (
+    serverOnlyPage.manifest.some(
+      (island) =>
+        !island.serverOnly ||
+        island.client !== "none" ||
+        island.prefetch !== "none",
+    )
+  ) {
+    failures.push("server-only zero-JS manifest contains client islands");
+  }
+  if (serverOnlyPage.network.failedResponses.length > 0) {
+    failures.push(
+      `server-only zero-JS page loaded failed responses: ${serverOnlyPage.network.failedResponses
+        .map((response) => `${response.status} ${response.url}`)
+        .join("; ")}`,
+    );
+  }
+  if (serverOnlyPage.browserErrors.length > 0) {
+    failures.push(
+      `server-only zero-JS page emitted browser errors: ${serverOnlyPage.browserErrors
+        .map((error) => error.text)
+        .join("; ")}`,
+    );
+  }
 
   if (!benchmarkPage.ssr.containsServerReport) {
     failures.push("server-only SSR report was missing from initial HTML");
@@ -1198,6 +1277,22 @@ function compare(previous, current) {
       "ms",
     ),
     metric(
+      "server-only total",
+      previous.pages.serverOnly?.network?.totalBytes,
+      current.pages.serverOnly.network.totalBytes,
+    ),
+    metric(
+      "server-only JS",
+      previous.pages.serverOnly?.network?.jsBytes,
+      current.pages.serverOnly.network.jsBytes,
+    ),
+    metric(
+      "server-only hydrated islands",
+      previous.pages.serverOnly?.runtime?.islands?.hydratedCount,
+      current.pages.serverOnly.runtime?.islands?.hydratedCount,
+      "count",
+    ),
+    metric(
       "benchmark initial total",
       previous.pages.benchmarks.network.totalBytes,
       current.pages.benchmarks.network.totalBytes,
@@ -1325,6 +1420,26 @@ function budgetFailures(result, budget) {
       budget.benchmarks?.maxInitialTotalBytes,
     ],
     [
+      "server-only total bytes",
+      result.pages.serverOnly.network.totalBytes,
+      budget.serverOnly?.maxTotalBytes,
+    ],
+    [
+      "server-only JS bytes",
+      result.pages.serverOnly.network.jsBytes,
+      budget.serverOnly?.maxJsBytes,
+    ],
+    [
+      "server-only hydrated islands",
+      result.pages.serverOnly.runtime?.islands?.hydratedCount,
+      budget.serverOnly?.maxHydratedIslands,
+    ],
+    [
+      "server-only forbidden client chunks",
+      result.pages.serverOnly.zeroJsProof?.forbiddenClientChunks.length,
+      budget.serverOnly?.maxForbiddenClientChunks,
+    ],
+    [
       "benchmark initial unique bytes",
       result.pages.benchmarks.network.uniqueBytes,
       budget.benchmarks?.maxInitialUniqueBytes,
@@ -1444,7 +1559,9 @@ function regressionFailures(result, budget) {
     const maxDelta =
       row.unit === "ms"
         ? (metricPolicy.maxDeltaMs ?? defaults.maxDeltaMs)
-        : (metricPolicy.maxDeltaBytes ?? defaults.maxDeltaBytes);
+        : row.unit === "count"
+          ? metricPolicy.maxDeltaCount
+          : (metricPolicy.maxDeltaBytes ?? defaults.maxDeltaBytes);
 
     const percentFailed =
       typeof maxDeltaPercent === "number" &&
@@ -1478,6 +1595,8 @@ function markdown(result) {
   const rows = [
     ["Home total", result.pages.home.network.totalBytes],
     ["Home unique URL total", result.pages.home.network.uniqueBytes],
+    ["Server-only total", result.pages.serverOnly.network.totalBytes],
+    ["Server-only JS", result.pages.serverOnly.network.jsBytes],
     ["Benchmark initial total", result.pages.benchmarks.network.totalBytes],
     [
       "Benchmark initial unique URL total",
@@ -1531,6 +1650,15 @@ function markdown(result) {
     `- Server-only report has no hook: ${!result.pages.benchmarks.ssr.serverReportHasHook}`,
     `- Deferred report has no hook: ${!result.pages.benchmarks.ssr.deferredReportHasHook}`,
     `- Browser errors: ${result.pages.benchmarks.browserErrors.length}`,
+    "",
+    "## Server-Only Zero-JS Proof",
+    "",
+    `- React SSR proof in HTML: ${result.pages.serverOnly.zeroJsProof.containsReactProof}`,
+    `- Vue SSR proof in HTML: ${result.pages.serverOnly.zeroJsProof.containsVueProof}`,
+    `- LiveView hook count: ${result.pages.serverOnly.zeroJsProof.hookCount}`,
+    `- Hydrated islands: ${result.pages.serverOnly.runtime.islands.hydratedCount}`,
+    `- Prefetched chunks: ${result.pages.serverOnly.runtime.prefetch.loadedCount}`,
+    `- Forbidden client chunks: ${result.pages.serverOnly.zeroJsProof.forbiddenClientChunks.length}`,
     "",
     "## Sample Stability",
     "",
@@ -1605,6 +1733,7 @@ function elixirLine(value) {
 function runtimeRows(result) {
   return [
     ["Home", result.pages.home],
+    ["Server Only", result.pages.serverOnly],
     ["Benchmarks", result.pages.benchmarks],
   ].map(([name, page]) => {
     const runtime = page.runtime || {};
@@ -1622,6 +1751,36 @@ function sampleStatsRows(result) {
     ["Home total bytes", result.pages.home.stats.network.totalBytes, "bytes"],
     ["Home FCP", result.pages.home.stats.runtime.firstContentfulPaint, "ms"],
     ["Home LCP", result.pages.home.stats.runtime.largestContentfulPaint, "ms"],
+    [
+      "Server-only navigation",
+      result.pages.serverOnly.stats.navigationMs,
+      "ms",
+    ],
+    [
+      "Server-only total bytes",
+      result.pages.serverOnly.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "Server-only JS bytes",
+      result.pages.serverOnly.stats.network.jsBytes,
+      "bytes",
+    ],
+    [
+      "Server-only FCP",
+      result.pages.serverOnly.stats.runtime.firstContentfulPaint,
+      "ms",
+    ],
+    [
+      "Server-only LCP",
+      result.pages.serverOnly.stats.runtime.largestContentfulPaint,
+      "ms",
+    ],
+    [
+      "Server-only hydrated islands",
+      result.pages.serverOnly.stats.runtime.hydratedCount,
+      "count",
+    ],
     ["Benchmark navigation", result.pages.benchmarks.stats.navigationMs, "ms"],
     [
       "Benchmark total bytes",
@@ -1740,6 +1899,7 @@ function formatOptional(value, unit) {
 }
 
 function formatComparisonValue(value, unit) {
+  if (unit === "count") return `${value}`;
   return unit === "ms" ? `${value} ms` : formatBytes(value);
 }
 
@@ -1785,7 +1945,7 @@ async function main() {
 
     try {
       const result = {
-        version: 5,
+        version: 6,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
@@ -1794,6 +1954,9 @@ async function main() {
         artifacts: buildArtifacts(),
         pages: {
           home: await collectScenario(browser, "/"),
+          serverOnly: await collectScenario(browser, "/server-only", {
+            zeroJsProof: true,
+          }),
           benchmarks: await collectScenario(browser, "/benchmarks", {
             heavyInteraction: true,
           }),
@@ -1827,6 +1990,23 @@ async function main() {
         {
           metric: "home total",
           value: formatBytes(result.pages.home.network.totalBytes),
+        },
+        {
+          metric: "server-only total",
+          value: formatBytes(result.pages.serverOnly.network.totalBytes),
+        },
+        {
+          metric: "server-only JS",
+          value: formatBytes(result.pages.serverOnly.network.jsBytes),
+        },
+        {
+          metric: "server-only hydrated",
+          value: result.pages.serverOnly.runtime.islands.hydratedCount,
+        },
+        {
+          metric: "server-only forbidden chunks",
+          value:
+            result.pages.serverOnly.zeroJsProof.forbiddenClientChunks.length,
         },
         {
           metric: "benchmark initial total",

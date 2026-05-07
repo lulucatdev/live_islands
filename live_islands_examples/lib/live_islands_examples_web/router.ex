@@ -29,6 +29,7 @@ defmodule LiveIslandsExamplesWeb.Router do
     get "/simple", PageController, :simple
     get "/simple-props", PageController, :simple_props
     get "/typescript", PageController, :typescript
+    get "/server-only", PageController, :server_only
 
     live "/live-counter", LiveCounter
     live "/context", LiveContext

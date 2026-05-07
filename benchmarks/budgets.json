@@ -5,6 +5,12 @@
     "maxLargestContentfulPaintMs": 2500,
     "maxLastHydratedMs": 2500
   },
+  "serverOnly": {
+    "maxTotalBytes": 500000,
+    "maxJsBytes": 420000,
+    "maxHydratedIslands": 0,
+    "maxForbiddenClientChunks": 0
+  },
   "benchmarks": {
     "maxInitialTotalBytes": 700000,
     "maxInitialUniqueBytes": 700000,
