@@ -5,6 +5,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.11.2
+
+Todo benchmark flow comparison hardening.
+
+- Versioned the `/todo` interaction flow definition so release-to-release duration and interaction-byte comparisons only run when the same workflow is being measured.
+- Kept the new LiveView-native Todo proof strict through absolute budgets, browser e2e, native form/stream assertions, URL-state assertions, and benchmark proof rows.
+- Documented the benchmark policy distinction between product-flow changes and apples-to-apples performance regressions.
+
 ## v0.11.1
 
 LiveView-native capability mimicry in the Todo demo.

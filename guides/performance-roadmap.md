@@ -92,4 +92,5 @@ Astro's product-page insistence on measuring what users actually load.
 - Benchmarks: schema `version: 9` records Todo initial total bytes, initial
   JavaScript bytes, hydrated island counts, deferred SSR fetch bytes, native
   LiveView control proof, workflow interaction bytes, interaction duration, SSR
-  proof rows, budgets, and release-to-release comparison metrics
+  proof rows, budgets, versioned workflow definitions, and release-to-release
+  comparison metrics

@@ -36,6 +36,13 @@ const comparePath = args.get("compare");
 const budgetPath = args.get("budget") || defaultBudgetPath;
 const outPath = resolve(args.get("out") || join(resultsDir, "latest.json"));
 const markdownPath = outPath.replace(/\.json$/, ".md");
+const benchmarkSchemaVersion = 9;
+const todoInteractionFlow = {
+  name: "todo-liveview-native-islands-flow",
+  version: 2,
+  description:
+    "Native LiveView validation/submission, URL patching, JS commands, React/Vue island events, and deferred SSR in one Todo workflow.",
+};
 
 function positiveIntegerArg(name, fallback) {
   const raw = args.get(name);
@@ -635,6 +642,8 @@ async function collectPage(browser, pathname, options = {}) {
     const added = allResponses.slice(initialInteractionCount);
 
     todoInteraction = {
+      flowName: todoInteractionFlow.name,
+      flowVersion: todoInteractionFlow.version,
       durationMs: Date.now() - startedAt,
       network: summarizeResponses(added),
       planHeadline: await page.getByTestId("todo-plan-headline").textContent(),
@@ -1530,6 +1539,11 @@ function assertBenchmarks(result) {
 }
 
 function compare(previous, current) {
+  const comparableTodoInteraction =
+    previous.pages.todoApp?.todoInteraction?.flowVersion != null &&
+    previous.pages.todoApp.todoInteraction.flowVersion ===
+      current.pages.todoApp.todoInteraction.flowVersion;
+
   const metric = (name, before, after, unit = "bytes") => {
     if (
       typeof before !== "number" ||
@@ -1629,17 +1643,21 @@ function compare(previous, current) {
       previous.pages.todoApp?.network?.jsBytes,
       current.pages.todoApp.network.jsBytes,
     ),
-    metric(
-      "todo app interaction total",
-      previous.pages.todoApp?.todoInteraction?.network?.totalBytes,
-      current.pages.todoApp.todoInteraction.network.totalBytes,
-    ),
-    metric(
-      "todo app interaction duration",
-      previous.pages.todoApp?.todoInteraction?.durationMs,
-      current.pages.todoApp.todoInteraction.durationMs,
-      "ms",
-    ),
+    comparableTodoInteraction
+      ? metric(
+          "todo app interaction total",
+          previous.pages.todoApp?.todoInteraction?.network?.totalBytes,
+          current.pages.todoApp.todoInteraction.network.totalBytes,
+        )
+      : null,
+    comparableTodoInteraction
+      ? metric(
+          "todo app interaction duration",
+          previous.pages.todoApp?.todoInteraction?.durationMs,
+          current.pages.todoApp.todoInteraction.durationMs,
+          "ms",
+        )
+      : null,
     metric(
       "benchmark initial total",
       previous.pages.benchmarks.network.totalBytes,
@@ -2103,6 +2121,7 @@ function markdown(result) {
     `- React server-only digest has no hook: ${!result.pages.todoApp.todoProof.staticDigestHasHook}`,
     `- Vue server-only proof has no hook: ${!result.pages.todoApp.todoProof.staticRhythmHasHook}`,
     `- Deferred server island loaded: ${result.pages.todoApp.deferred.loadedCount}`,
+    `- Interaction flow: ${result.pages.todoApp.todoInteraction.flowName} v${result.pages.todoApp.todoInteraction.flowVersion}`,
     `- Interaction bytes: ${formatBytes(result.pages.todoApp.todoInteraction.network.totalBytes)}`,
     `- Interaction duration: ${result.pages.todoApp.todoInteraction.durationMs} ms`,
     `- Event-reply headline: ${result.pages.todoApp.todoInteraction.planHeadline}`,
@@ -2480,11 +2499,14 @@ async function main() {
 
     try {
       const result = {
-        version: 9,
+        version: benchmarkSchemaVersion,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
         sampleCount,
+        definitions: {
+          todoInteraction: todoInteractionFlow,
+        },
         environment: benchmarkEnvironment(browser),
         artifacts: buildArtifacts(),
         pages: {

@@ -61,6 +61,10 @@ regressions. This catches duplicate entrypoint loads, real bundle growth, slower
 hydration, slower deferred SSR fetches, premature intent loads, and accidental
 loss of lazy framework loading, hookless server-only rendering, page-scoped
 profile manifests, Todo workflow LiveView/SSR/deferred behavior, or CSS-only shell behavior.
+Workflow-level comparisons are versioned: when a release expands a product flow,
+the benchmark keeps the absolute budgets and proof assertions, but resumes
+release-to-release duration and interaction-byte comparisons once the flow
+definition matches again.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
@@ -72,7 +76,7 @@ For release tags, it also publishes stable assets on the GitHub Release:
 When the previous release has `live-islands-benchmark.json`, the workflow
 downloads it and runs the new benchmark with `--compare`, so every release can
 show whether initial bytes, server-only bytes, heavy interaction bytes,
-profile bytes, Todo workflow bytes, route-flow bytes, and intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
+profile bytes, comparable Todo workflow bytes, route-flow bytes, and intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
 to the GitHub Release body under a stable marker, so the release page itself
 shows the current benchmark evidence.
 
