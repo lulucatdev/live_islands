@@ -18,6 +18,22 @@
   border-radius: 8px;
 }
 
+.showcase-shell {
+  --showcase-grid: rgba(24, 24, 27, 0.08);
+}
+
+.showcase-grid {
+  background-image: linear-gradient(var(--showcase-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--showcase-grid) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+  animation: showcase-grid-drift 24s linear infinite;
+}
+
+.showcase-card {
+  border-radius: 8px;
+}
+
 .todo-hero {
   background: linear-gradient(
       135deg,
@@ -60,6 +76,15 @@
   }
   50% {
     box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes showcase-grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 60px 30px;
   }
 }
 

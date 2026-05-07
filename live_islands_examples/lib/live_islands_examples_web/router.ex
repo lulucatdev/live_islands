@@ -24,7 +24,7 @@ defmodule LiveIslandsExamplesWeb.Router do
   scope "/", LiveIslandsExamplesWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", LiveShowcase
     get "/lazy", PageController, :lazy
     get "/simple", PageController, :simple
     get "/simple-props", PageController, :simple_props
