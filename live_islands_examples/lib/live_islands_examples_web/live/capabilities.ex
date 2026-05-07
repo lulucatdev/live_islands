@@ -26,6 +26,15 @@ defmodule LiveIslandsExamplesWeb.LiveCapabilities do
         client={:none}
         prefetch={:load}
       />
+      <.react
+        id="intent-prefetch-probe"
+        class="hidden"
+        name="SimpleProps"
+        title="Intent prefetch"
+        ssr={false}
+        client={:none}
+        prefetch={:intent}
+      />
       <.react_server id="server-only-react" class="hidden" name="Simple" />
       <.vue
         id="vue-capabilities"

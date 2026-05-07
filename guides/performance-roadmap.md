@@ -19,15 +19,14 @@ Borrowed from Astro server islands.
 
 Borrowed from Qwik prefetch scheduling.
 
-- API: keep the existing `prefetch={:idle | :visible | :hover | :tap}` surface
-  and add application-provided `preloadUrls(name)` where Vite manifests can map
-  components to concrete modulepreload URLs
-- Runtime: bounded concurrency, queue/start/load/error events, and adaptive
-  defaults informed by release benchmark history
-- Tests: queue ordering, failure recovery, page-scope isolation, and route-flow
-  e2e checks
-- Benchmarks: prefetch event counts, premature heavy-library loads, route-flow
-  bytes, and modulepreload impact
+- API: `prefetch={:intent}` plus application-provided `preloadUrls(name)`
+  where Vite manifests can map components to concrete modulepreload URLs
+- Runtime: bounded concurrency, priority/reprioritization, queue/start/
+  modulepreload/load/skip/error events, and save-data/slow-network protection
+- Tests: static render coverage for `:intent` and browser e2e proof that the
+  target component waits for pointer intent before loading
+- Benchmarks: prefetch event counts, premature target-load checks, route-flow
+  bytes, intent-trigger bytes, and modulepreload evidence
 
 ## v0.8 Server-Only Zero-JS Proofs
 

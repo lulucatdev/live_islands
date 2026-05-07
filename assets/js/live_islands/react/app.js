@@ -5,7 +5,11 @@ import {
   componentNotFoundError,
 } from "../diagnostics.js";
 
-export const createReactIsland = ({ resolve, availableComponents }) => {
+export const createReactIsland = ({
+  resolve,
+  availableComponents,
+  preloadUrls,
+}) => {
   if (typeof resolve !== "function") {
     throw new Error(
       "[LiveIslands][react] createReactIsland requires a resolve function.",
@@ -66,6 +70,7 @@ export const createReactIsland = ({ resolve, availableComponents }) => {
   return {
     resolve: load,
     preload: load,
+    preloadUrls,
   };
 };
 

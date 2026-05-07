@@ -25,6 +25,10 @@
     "capabilitiesToBenchmarks": {
       "maxTotalBytes": 80000,
       "maxJsBytes": 70000
+    },
+    "intentPrefetch": {
+      "maxTotalBytes": 80000,
+      "maxDurationMs": 1500
     }
   },
   "regressions": {

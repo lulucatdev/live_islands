@@ -90,12 +90,14 @@ export type VueIslandOptions = {
   resolve: (path: string) => ComponentOrComponentPromise | undefined | null;
   setup?: (context: SetupContext) => App;
   availableComponents?: ComponentMap | string[];
+  preloadUrls?: (path: string) => string[] | Promise<string[]>;
 };
 
 export type VueIslandApp = {
   setup: (context: SetupContext) => App;
   resolve: (path: string) => ComponentOrComponentPromise;
   preload: (path: string) => ComponentOrComponentPromise;
+  preloadUrls?: (path: string) => string[] | Promise<string[]>;
 };
 
 export interface VueIslandHooks {

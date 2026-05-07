@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.7.0
+
+Intent-aware prefetch and modulepreload evidence.
+
+- Added `prefetch={:intent}` for React and Vue islands, using visible soft intent plus high-priority pointer/focus/touch intent while respecting save-data and slow-network signals.
+- Upgraded the prefetch queue with priority, reprioritization, modulepreload events, skip events, and richer `live-islands:prefetch:*` event metadata.
+- Added optional `preloadUrls(name)` support to React and Vue island registries so apps can provide concrete modulepreload URLs from their Vite manifest.
+- Added an intent prefetch probe to the example app and browser e2e coverage proving the component does not load before intent, then loads with modulepreload evidence after pointer intent.
+- Extended the benchmark runner with an intent prefetch flow, modulepreload counts, new flow budgets, and release-to-release comparison metrics.
+
 ## v0.6.0
 
 Deferred server islands and measurable prefetch behavior.

@@ -334,8 +334,10 @@ async function installRuntimeProbe(page) {
       prefetch: {
         queued: [],
         started: [],
+        modulepreloaded: [],
         loaded: [],
         errors: [],
+        skipped: [],
       },
     };
 
@@ -362,6 +364,14 @@ async function installRuntimeProbe(page) {
         name: event.detail?.name || el?.getAttribute?.("data-name"),
         duration: event.detail?.duration ?? null,
         bytes: event.detail?.bytes ?? null,
+        policy: event.detail?.policy ?? null,
+        trigger: event.detail?.trigger ?? null,
+        priority: event.detail?.priority ?? null,
+        modulepreloadCount:
+          event.detail?.modulepreloadCount ?? event.detail?.count ?? 0,
+        modulepreloadUrls:
+          event.detail?.modulepreloadUrls || event.detail?.urls || [],
+        reason: event.detail?.reason ?? null,
         message: event.detail?.message ?? null,
       });
     };
@@ -416,11 +426,17 @@ async function installRuntimeProbe(page) {
     window.addEventListener("live-islands:prefetch:start", (event) =>
       rememberRuntimeEvent(event, state.prefetch.started),
     );
+    window.addEventListener("live-islands:prefetch:modulepreload", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.modulepreloaded),
+    );
     window.addEventListener("live-islands:prefetch:load", (event) =>
       rememberRuntimeEvent(event, state.prefetch.loaded),
     );
     window.addEventListener("live-islands:prefetch:error", (event) =>
       rememberRuntimeEvent(event, state.prefetch.errors),
+    );
+    window.addEventListener("live-islands:prefetch:skip", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.skipped),
     );
   });
 }
@@ -475,10 +491,14 @@ async function runtimeMetrics(page) {
       prefetch: {
         queuedCount: state.prefetch?.queued?.length || 0,
         startedCount: state.prefetch?.started?.length || 0,
+        modulepreloadedCount: state.prefetch?.modulepreloaded?.length || 0,
         loadedCount: state.prefetch?.loaded?.length || 0,
         errorCount: state.prefetch?.errors?.length || 0,
+        skippedCount: state.prefetch?.skipped?.length || 0,
+        modulepreloaded: state.prefetch?.modulepreloaded || [],
         loaded: state.prefetch?.loaded || [],
         errors: state.prefetch?.errors || [],
+        skipped: state.prefetch?.skipped || [],
       },
     };
   });
@@ -569,6 +589,11 @@ async function collectPage(browser, pathname, options = {}) {
         }
       : null;
   });
+  const modulepreloadLinks = await page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="modulepreload"]')].map(
+      (link) => link.href,
+    ),
+  );
   const runtimeSummary = await runtimeMetrics(page);
 
   await context.close();
@@ -579,6 +604,7 @@ async function collectPage(browser, pathname, options = {}) {
     network: summarizeResponses(initialResponses),
     performance: performanceSummary,
     runtime: runtimeSummary,
+    modulepreloadLinks,
     browserErrors,
     manifest: manifest.map((island) => ({
       page: island.page,
@@ -702,6 +728,85 @@ async function collectRouteFlow(browser) {
   };
 }
 
+const simplePropsRequest = (url) =>
+  url.includes("/react-components/simple-props.jsx") ||
+  /\/simple-props-[\w-]+\.js/.test(url);
+
+async function collectIntentPrefetch(browser) {
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await installRuntimeProbe(page);
+  const { responsePromises, browserErrors } = attachDiagnostics(page);
+
+  await page.goto(`${baseURL}/capabilities`, { waitUntil: "networkidle" });
+  await page.waitForFunction(() =>
+    window.__liveIslandsPrefetch
+      ?.manifest?.()
+      ?.some((island) => island.name === "SimpleProps"),
+  );
+  await page.waitForLoadState("networkidle");
+
+  const beforeResponses = (await Promise.all([...responsePromises])).filter(
+    Boolean,
+  );
+  const beforeModulepreloadLinks = await page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="modulepreload"]')].map(
+      (link) => link.href,
+    ),
+  );
+  const beforeModulepreloadSet = new Set(beforeModulepreloadLinks);
+  const initialCount = responsePromises.length;
+
+  const startedAt = Date.now();
+  await page.locator("#intent-prefetch-probe").evaluate((el) => {
+    el.dispatchEvent(new PointerEvent("pointerenter"));
+  });
+  await page.waitForFunction(() =>
+    window.__liveIslandsBenchmarkRuntime?.prefetch?.loaded?.some(
+      (event) => event.name === "SimpleProps",
+    ),
+  );
+  await page.waitForLoadState("networkidle");
+  const durationMs = Date.now() - startedAt;
+
+  const allResponses = (await Promise.all([...responsePromises])).filter(
+    Boolean,
+  );
+  const added = allResponses.slice(initialCount);
+  const runtimeSummary = await runtimeMetrics(page);
+  const modulepreloadLinks = await page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="modulepreload"]')].map(
+      (link) => link.href,
+    ),
+  );
+  const manifest = await islandManifest(page);
+
+  await context.close();
+
+  return {
+    name: "intent-prefetch",
+    path: "/capabilities",
+    target: "SimpleProps",
+    trigger: "pointerenter",
+    durationMs,
+    initialNetwork: summarizeResponses(beforeResponses),
+    network: summarizeResponses(added),
+    initialLoadedTarget: beforeResponses.some((response) =>
+      simplePropsRequest(response.url),
+    ),
+    loadedTarget: added.some((response) => simplePropsRequest(response.url)),
+    modulepreloadLinks: modulepreloadLinks.filter(
+      (url) => !beforeModulepreloadSet.has(url),
+    ),
+    runtime: runtimeSummary.prefetch,
+    manifest,
+    browserErrors,
+  };
+}
+
 async function islandManifest(page) {
   const manifest = await page.evaluate(
     () => window.__liveIslandsPrefetch?.manifest?.() || [],
@@ -783,6 +888,9 @@ function summarizePageSamples(samples) {
       ),
       prefetchLoadedCount: numericStats(
         samples.map((sample) => sample.runtime?.prefetch?.loadedCount),
+      ),
+      prefetchModulepreloadedCount: numericStats(
+        samples.map((sample) => sample.runtime?.prefetch?.modulepreloadedCount),
       ),
     },
     interaction:
@@ -903,6 +1011,7 @@ function assertBenchmarks(result) {
   const failures = [];
   const benchmarkPage = result.pages.benchmarks;
   const routeFlow = result.flows?.capabilitiesToBenchmarks;
+  const intentPrefetch = result.flows?.intentPrefetch;
 
   if (!benchmarkPage.ssr.containsServerReport) {
     failures.push("server-only SSR report was missing from initial HTML");
@@ -996,6 +1105,45 @@ function assertBenchmarks(result) {
     if (routeFlow.browserErrors.length > 0) {
       failures.push(
         `route flow emitted browser errors: ${routeFlow.browserErrors
+          .map((error) => error.text)
+          .join("; ")}`,
+      );
+    }
+  }
+  if (intentPrefetch) {
+    if (intentPrefetch.initialLoadedTarget) {
+      failures.push("intent prefetch target loaded before explicit intent");
+    }
+    if (!intentPrefetch.loadedTarget) {
+      failures.push("intent prefetch did not load its target after intent");
+    }
+    if (intentPrefetch.modulepreloadLinks.length === 0) {
+      failures.push("intent prefetch did not insert modulepreload links");
+    }
+    if (
+      !intentPrefetch.runtime.loaded.some(
+        (event) =>
+          event.name === intentPrefetch.target &&
+          event.policy === "intent" &&
+          event.trigger === intentPrefetch.trigger &&
+          event.priority === "high",
+      )
+    ) {
+      failures.push("intent prefetch did not emit high-priority load evidence");
+    }
+    if (intentPrefetch.runtime.errorCount > 0) {
+      failures.push("intent prefetch emitted runtime errors");
+    }
+    if (intentPrefetch.network.failedResponses.length > 0) {
+      failures.push(
+        `intent prefetch loaded failed responses: ${intentPrefetch.network.failedResponses
+          .map((response) => `${response.status} ${response.url}`)
+          .join("; ")}`,
+      );
+    }
+    if (intentPrefetch.browserErrors.length > 0) {
+      failures.push(
+        `intent prefetch emitted browser errors: ${intentPrefetch.browserErrors
           .map((error) => error.text)
           .join("; ")}`,
       );
@@ -1129,6 +1277,21 @@ function compare(previous, current) {
       ),
     );
   }
+  if (previous.flows?.intentPrefetch && current.flows?.intentPrefetch) {
+    fields.push(
+      metric(
+        "intent prefetch total",
+        previous.flows.intentPrefetch.network.totalBytes,
+        current.flows.intentPrefetch.network.totalBytes,
+      ),
+      metric(
+        "intent prefetch duration",
+        previous.flows.intentPrefetch.durationMs,
+        current.flows.intentPrefetch.durationMs,
+        "ms",
+      ),
+    );
+  }
 
   return fields.filter(Boolean).map(({ name, before, after, unit }) => ({
     name,
@@ -1242,6 +1405,20 @@ function budgetFailures(result, budget) {
       ],
     );
   }
+  if (result.flows?.intentPrefetch) {
+    checks.push(
+      [
+        "intent prefetch total bytes",
+        result.flows.intentPrefetch.network.totalBytes,
+        budget.flows?.intentPrefetch?.maxTotalBytes,
+      ],
+      [
+        "intent prefetch duration",
+        result.flows.intentPrefetch.durationMs,
+        budget.flows?.intentPrefetch?.maxDurationMs,
+      ],
+    );
+  }
 
   return checks
     .filter(([_name, actual, max]) => typeof max === "number" && actual > max)
@@ -1319,8 +1496,14 @@ function markdown(result) {
       "Benchmark deferred HTML",
       result.pages.benchmarks.deferred.network.totalBytes,
     ],
+    result.flows.intentPrefetch
+      ? [
+          "Intent prefetch total",
+          result.flows.intentPrefetch.network.totalBytes,
+        ]
+      : null,
     ["Vite artifact gzip total", result.artifacts.totals.gzipBytes],
-  ];
+  ].filter(Boolean);
 
   return [
     "# LiveIslands Benchmark Result",
@@ -1357,8 +1540,8 @@ function markdown(result) {
     "",
     "## Runtime Metrics",
     "",
-    "| Page | FCP | LCP | Hydrated Islands | Last Hydrated | Deferred Loaded | Last Deferred | Prefetch Loaded |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Page | FCP | LCP | Hydrated Islands | Last Hydrated | Deferred Loaded | Last Deferred | Prefetch Loaded | Modulepreloads |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...runtimeRows(result),
     "",
     "## Largest Benchmark Initial Requests",
@@ -1383,6 +1566,7 @@ function markdown(result) {
         )} |`,
     ),
     ...routeFlowMarkdown(result),
+    ...intentPrefetchMarkdown(result),
     "",
     "## Page Manifest",
     "",
@@ -1428,7 +1612,7 @@ function runtimeRows(result) {
     const deferred = runtime.deferred || {};
     const prefetch = runtime.prefetch || {};
 
-    return `| ${name} | ${formatOptional(runtime.firstContentfulPaint, "ms")} | ${formatOptional(runtime.largestContentfulPaint, "ms")} | ${islands.hydratedCount ?? 0} | ${formatOptional(islands.lastHydrated, "ms")} | ${deferred.loadedCount ?? 0} | ${formatOptional(deferred.lastLoaded, "ms")} | ${prefetch.loadedCount ?? 0} |`;
+    return `| ${name} | ${formatOptional(runtime.firstContentfulPaint, "ms")} | ${formatOptional(runtime.largestContentfulPaint, "ms")} | ${islands.hydratedCount ?? 0} | ${formatOptional(islands.lastHydrated, "ms")} | ${deferred.loadedCount ?? 0} | ${formatOptional(deferred.lastLoaded, "ms")} | ${prefetch.loadedCount ?? 0} | ${prefetch.modulepreloadedCount ?? 0} |`;
   });
 }
 
@@ -1468,6 +1652,16 @@ function sampleStatsRows(result) {
       "Benchmark deferred span",
       result.pages.benchmarks.stats.runtime.deferredLoadSpan,
       "ms",
+    ],
+    [
+      "Benchmark prefetch loaded",
+      result.pages.benchmarks.stats.runtime.prefetchLoadedCount,
+      "count",
+    ],
+    [
+      "Benchmark modulepreloads",
+      result.pages.benchmarks.stats.runtime.prefetchModulepreloadedCount,
+      "count",
     ],
     [
       "Heavy interaction duration",
@@ -1510,7 +1704,32 @@ function routeFlowMarkdown(result) {
   ];
 }
 
+function intentPrefetchMarkdown(result) {
+  const flow = result.flows?.intentPrefetch;
+  if (!flow) return [];
+
+  const loadedEvent = flow.runtime.loaded.find(
+    (event) => event.name === flow.target,
+  );
+
+  return [
+    "",
+    "## Intent Prefetch Flow",
+    "",
+    `- Page: \`${flow.path}\``,
+    `- Target: \`${flow.target}\``,
+    `- Trigger: \`${flow.trigger}\``,
+    `- Loaded before intent: ${flow.initialLoadedTarget}`,
+    `- Loaded after intent: ${flow.loadedTarget}`,
+    `- Duration: ${flow.durationMs} ms`,
+    `- Network total: ${formatBytes(flow.network.totalBytes)}`,
+    `- Modulepreload links: ${flow.modulepreloadLinks.length}`,
+    `- Runtime evidence: ${loadedEvent ? `${loadedEvent.policy}/${loadedEvent.trigger}/${loadedEvent.priority}` : "missing"}`,
+  ];
+}
+
 function formatStat(value, unit) {
+  if (unit === "count") return `${value}`;
   if (unit === "bytes") return formatBytes(value);
   return `${value} ${unit}`;
 }
@@ -1566,7 +1785,7 @@ async function main() {
 
     try {
       const result = {
-        version: 4,
+        version: 5,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
@@ -1583,6 +1802,7 @@ async function main() {
           ? {}
           : {
               capabilitiesToBenchmarks: await collectRouteFlow(browser),
+              intentPrefetch: await collectIntentPrefetch(browser),
             },
       };
 
@@ -1627,6 +1847,12 @@ async function main() {
           value: formatBytes(
             result.pages.benchmarks.deferred.network.totalBytes,
           ),
+        },
+        {
+          metric: "intent prefetch",
+          value: result.flows.intentPrefetch
+            ? formatBytes(result.flows.intentPrefetch.network.totalBytes)
+            : "skipped",
         },
         {
           metric: "artifact gzip total",

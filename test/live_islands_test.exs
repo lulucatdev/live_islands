@@ -63,6 +63,19 @@ defmodule LiveIslandsTest do
       assert island.prefetch_media == "(min-width: 1024px)"
     end
 
+    def intent_component(assigns) do
+      ~H"""
+      <.react id="intent-card" name="IntentCard" prefetch={:intent} />
+      """
+    end
+
+    test "renders intent-aware prefetch policy" do
+      html = render_component(&intent_component/1)
+      island = Test.get_react(html, id: "intent-card")
+
+      assert island.prefetch == "intent"
+    end
+
     def server_component(assigns) do
       ~H"""
       <div>

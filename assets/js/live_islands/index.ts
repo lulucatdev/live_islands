@@ -148,6 +148,9 @@ export function getIslandHooks({
     | boolean
     | {
         defaultPolicy?: string;
+        maxConcurrent?: number;
+        networkAware?: boolean;
+        respectSaveData?: boolean;
         scope?: "page" | "document" | string | Element;
       };
   defer?: boolean | { scope?: string | Element | Document };

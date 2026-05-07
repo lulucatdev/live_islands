@@ -25,8 +25,18 @@ const components = {
   Typescript: () => import("./typescript"),
 };
 
+const componentPreloadUrls = {
+  SimpleProps: () => urlsFromLoader(components.SimpleProps),
+};
+
+const urlsFromLoader = (loader) => {
+  const match = loader?.toString().match(/import\(["'](.+?)["']\)/);
+  return match ? [new URL(match[1], import.meta.url).href] : [];
+};
+
 export default createReactIsland({
   availableComponents: components,
+  preloadUrls: (name) => componentPreloadUrls[name]?.() || [],
   resolve: (name) => {
     const component = components[name];
     return typeof component === "function" ? component() : component;

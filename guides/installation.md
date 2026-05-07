@@ -231,4 +231,4 @@ Finally render one React island and one Vue island:
 <.vue v-component="status" client={:idle} prefetch={:hover} message="Vue island ready" />
 ```
 
-See `guides/lazy-islands.md` for `client={:load | :idle | :visible | :interaction | {:media, query} | :none}`, `prefetch={:load | :idle | :visible | :hover | :tap | :interaction | {:media, query} | :none}`, server-only islands, custom strategies, and component-level code splitting.
+See `guides/lazy-islands.md` for `client={:load | :idle | :visible | :interaction | {:media, query} | :none}`, `prefetch={:load | :idle | :visible | :hover | :tap | :interaction | :intent | {:media, query} | :none}`, server-only islands, custom strategies, and component-level code splitting.

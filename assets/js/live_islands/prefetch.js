@@ -4,6 +4,11 @@ const ISLAND_SELECTOR = "[data-framework][data-name]";
 const PAGE_SCOPE_SELECTOR = "[data-live-islands-page], [data-phx-main]";
 const PREFETCHED = new Set();
 const MODULE_PRELOADED = new Set();
+const PREFETCH_PRIORITY = {
+  low: 0,
+  normal: 1,
+  high: 2,
+};
 
 const dispatchPrefetch = (name, el, detail = {}) => {
   window.dispatchEvent(
@@ -61,13 +66,86 @@ const onMedia = (query, callback) => {
 };
 
 const onEvents = (el, events, callback) => {
-  const done = () => {
+  const done = (event) => {
     events.forEach((event) => el.removeEventListener(event, done));
-    callback();
+    callback(event);
   };
 
   events.forEach((event) => el.addEventListener(event, done, { once: true }));
   return () => events.forEach((event) => el.removeEventListener(event, done));
+};
+
+const connectionInfo = () => {
+  const connection =
+    navigator.connection ||
+    navigator.mozConnection ||
+    navigator.webkitConnection ||
+    {};
+
+  return {
+    saveData: Boolean(connection.saveData),
+    effectiveType: connection.effectiveType || null,
+  };
+};
+
+const softPrefetchBlocked = (options = {}) => {
+  if (options.networkAware === false) return null;
+
+  const connection = connectionInfo();
+  if (options.respectSaveData !== false && connection.saveData) {
+    return "save-data";
+  }
+
+  const effectiveType = String(connection.effectiveType || "");
+  if (/^(slow-)?2g$/i.test(effectiveType)) {
+    return `effective-type:${effectiveType}`;
+  }
+
+  return null;
+};
+
+const onIntent = (el, preload, context = {}) => {
+  let idleCleanup = () => {};
+
+  const visibleCleanup = onVisible(el, () => {
+    const reason = softPrefetchBlocked(context.options);
+    if (reason) {
+      dispatchPrefetch("skip", el, {
+        framework: el.getAttribute("data-framework"),
+        name: el.getAttribute("data-name"),
+        policy: "intent",
+        trigger: "visible",
+        priority: "low",
+        reason,
+      });
+      return;
+    }
+
+    idleCleanup = onIdle(() =>
+      preload(el, {
+        policy: "intent",
+        trigger: "visible",
+        priority: "low",
+      }),
+    );
+  });
+
+  const intentCleanup = onEvents(
+    el,
+    ["pointerenter", "focusin", "pointerdown", "touchstart"],
+    (event) =>
+      preload(el, {
+        policy: "intent",
+        trigger: event?.type || "intent",
+        priority: "high",
+      }),
+  );
+
+  return () => {
+    idleCleanup();
+    visibleCleanup();
+    intentCleanup();
+  };
 };
 
 const prefetchStrategies = new Map([
@@ -97,9 +175,10 @@ const prefetchStrategies = new Map([
       onEvents(
         el,
         ["pointerenter", "pointerdown", "focusin", "touchstart"],
-        () => preload(el),
+        (event) => preload(el, { trigger: event?.type || "interaction" }),
       ),
   ],
+  ["intent", onIntent],
   [
     "media",
     (el, preload) =>
@@ -143,6 +222,8 @@ const normalizePolicy = (policy, defaultPolicy = "none") => {
       return "tap";
     case "interaction":
       return "interaction";
+    case "intent":
+      return "intent";
     case "media":
       return "media";
     default:
@@ -254,8 +335,9 @@ const preloadValue = async (value) => {
 
 const preloadModuleUrls = async (urls) => {
   const resolvedUrls = urls instanceof Promise ? await urls : urls;
-  if (!Array.isArray(resolvedUrls)) return;
+  if (!Array.isArray(resolvedUrls)) return [];
 
+  const inserted = [];
   for (const url of resolvedUrls) {
     if (!url || MODULE_PRELOADED.has(url)) continue;
     MODULE_PRELOADED.add(url);
@@ -264,7 +346,10 @@ const preloadModuleUrls = async (urls) => {
     link.rel = "modulepreload";
     link.href = url;
     document.head.appendChild(link);
+    inserted.push(link.href);
   }
+
+  return inserted;
 };
 
 const normalizePreloadApp = (framework, app) => {
@@ -274,6 +359,7 @@ const normalizePreloadApp = (framework, app) => {
   if (typeof app.resolve === "function") {
     return {
       preload: (name) => preloadValue(app.resolve(name)),
+      preloadUrls: app.preloadUrls,
     };
   }
 
@@ -333,25 +419,62 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
   const scheduled = new WeakMap();
   const cleanups = new Set();
   const queue = [];
+  const queued = new Map();
   let active = 0;
 
+  const priorityValue = (priority) =>
+    PREFETCH_PRIORITY[priority] ?? PREFETCH_PRIORITY.normal;
+
+  const normalizePriority = (priority, policy) => {
+    if (Object.hasOwn(PREFETCH_PRIORITY, priority)) return priority;
+    if (policy === "load" || policy === "intent") return "high";
+    if (policy === "idle" || policy === "visible") return "low";
+    return "normal";
+  };
+
   const runQueue = () => {
+    queue.sort((left, right) => right.priorityValue - left.priorityValue);
+
     while (active < maxConcurrent && queue.length > 0) {
       const job = queue.shift();
       const startedAt = performance.now();
       active += 1;
+      queued.delete(job.key);
       dispatchPrefetch("start", job.el, {
         framework: job.framework,
         name: job.name,
+        policy: job.policy,
+        trigger: job.trigger,
+        priority: job.priority,
       });
 
+      let modulepreloadUrls = [];
       Promise.resolve()
         .then(() => preloadModuleUrls(job.app.preloadUrls?.(job.name)))
+        .then((urls) => {
+          modulepreloadUrls = urls;
+          if (urls.length > 0) {
+            dispatchPrefetch("modulepreload", job.el, {
+              framework: job.framework,
+              name: job.name,
+              policy: job.policy,
+              trigger: job.trigger,
+              priority: job.priority,
+              urls,
+              count: urls.length,
+            });
+          }
+        })
         .then(() => job.app.preload(job.name))
         .then(() =>
           dispatchPrefetch("load", job.el, {
             framework: job.framework,
             name: job.name,
+            policy: job.policy,
+            trigger: job.trigger,
+            priority: job.priority,
+            modulepreloadCount: modulepreloadUrls.length,
+            modulepreloadUrls,
             duration: Math.round(performance.now() - startedAt),
           }),
         )
@@ -360,6 +483,9 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
           dispatchPrefetch("error", job.el, {
             framework: job.framework,
             name: job.name,
+            policy: job.policy,
+            trigger: job.trigger,
+            priority: job.priority,
             message: error?.message || String(error),
             duration: Math.round(performance.now() - startedAt),
           });
@@ -374,7 +500,7 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     }
   };
 
-  const preload = (el) => {
+  const preload = (el, metadata = {}) => {
     const framework = el.getAttribute("data-framework");
     const name = el.getAttribute("data-name");
     const app = apps[framework];
@@ -382,13 +508,54 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     if (!framework || !name || !app?.preload) return;
 
     const key = `${framework}:${name}`;
-    if (PREFETCHED.has(key)) return;
+    const policy =
+      metadata.policy ||
+      normalizePolicy(el.getAttribute("data-prefetch"), defaultPolicy);
+    const trigger = metadata.trigger || policy;
+    const priority = normalizePriority(metadata.priority, policy);
+    const priorityWeight = priorityValue(priority);
+
+    if (PREFETCHED.has(key)) {
+      const job = queued.get(key);
+      if (job && priorityWeight > job.priorityValue) {
+        job.policy = policy;
+        job.trigger = trigger;
+        job.priority = priority;
+        job.priorityValue = priorityWeight;
+        dispatchPrefetch("queue", el, {
+          framework,
+          name,
+          policy,
+          trigger,
+          priority,
+          depth: queue.length,
+          reprioritized: true,
+        });
+        runQueue();
+      }
+      return;
+    }
     PREFETCHED.add(key);
 
-    queue.push({ app, el, framework, key, name });
+    const job = {
+      app,
+      el,
+      framework,
+      key,
+      name,
+      policy,
+      trigger,
+      priority,
+      priorityValue: priorityWeight,
+    };
+    queue.push(job);
+    queued.set(key, job);
     dispatchPrefetch("queue", el, {
       framework,
       name,
+      policy,
+      trigger,
+      priority,
       depth: queue.length,
     });
     runQueue();
@@ -405,7 +572,7 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     let cancel = () => {};
 
     if (scheduler) {
-      cancel = scheduler(el, preload) || cancel;
+      cancel = scheduler(el, preload, { options, policy }) || cancel;
     } else {
       warnLiveIslands(
         `${describeIslandElement(el)} uses unknown prefetch policy "${el.getAttribute(

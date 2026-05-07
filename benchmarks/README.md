@@ -11,12 +11,14 @@ benchmark routes in Chromium, and records:
 - JavaScript and CSS bytes by page
 - app entry bytes and Vite artifact gzip bytes
 - FCP, LCP, hydrated island count, last-hydrated time, deferred island time, and prefetch event counts
+- intent prefetch bytes, timing, modulepreload links, and proof that target chunks wait for explicit intent
 - Vite manifest dynamic island chunks
 - SSR content present in the initial HTML
 - server-only and deferred island hook absence
 - deferred server island fallback visibility, final HTML fetch bytes, and final HTML absence from the shell response
 - page-scoped island manifests after route navigation
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
+- an intent prefetch flow on `/capabilities`
 - deferred KaTeX and PDF.js bytes loaded after user intent
 - the OS, runtime, browser, CI, and package environment used for the run
 - browser console/page errors that would make the benchmark misleading
@@ -47,9 +49,10 @@ Node version, and Phoenix production settings.
 
 Budgets live in `benchmarks/budgets.json`. They intentionally track total
 network bytes, unique URL bytes, app entry bytes, runtime timings, deferred
-island bytes, and relative release-to-release regressions. This catches
-duplicate entrypoint loads, real bundle growth, slower hydration, slower
-deferred SSR fetches, and accidental loss of lazy framework loading.
+island bytes, intent prefetch bytes, and relative release-to-release
+regressions. This catches duplicate entrypoint loads, real bundle growth, slower
+hydration, slower deferred SSR fetches, premature intent loads, and accidental
+loss of lazy framework loading.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
@@ -60,8 +63,8 @@ For release tags, it also publishes stable assets on the GitHub Release:
 
 When the previous release has `live-islands-benchmark.json`, the workflow
 downloads it and runs the new benchmark with `--compare`, so every release can
-show whether initial bytes, heavy interaction bytes, and route-flow bytes moved
-up or down. The workflow also appends the generated benchmark Markdown summary
+show whether initial bytes, heavy interaction bytes, route-flow bytes, and
+intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
 to the GitHub Release body under a stable marker, so the release page itself
 shows the current benchmark evidence.
 

@@ -53,12 +53,15 @@ Then annotate islands with `prefetch`:
 ```heex
 <.react name="Chart" client={:visible} prefetch={:idle} />
 <.vue v-component="Filters" client={:idle} prefetch={:hover} />
+<.react name="ExpensiveChart" client={:visible} prefetch={:intent} />
 <.react name="WideMap" client={:visible} prefetch={{:media, "(min-width: 1024px)"}} />
 ```
 
-Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `:interaction`, `{:media, query}`, and `:none`.
+Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `:interaction`, `:intent`, `{:media, query}`, and `:none`.
 
-The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early. Prefetches run through a small bounded queue and dispatch `live-islands:prefetch:queue`, `live-islands:prefetch:start`, `live-islands:prefetch:load`, and `live-islands:prefetch:error`, so browser tests and benchmarks can prove that prefetch remains page scoped.
+The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early. Prefetches run through a small bounded priority queue and dispatch `live-islands:prefetch:queue`, `live-islands:prefetch:start`, `live-islands:prefetch:modulepreload`, `live-islands:prefetch:load`, `live-islands:prefetch:skip`, and `live-islands:prefetch:error`, so browser tests and benchmarks can prove that prefetch remains page scoped.
+
+Use `prefetch={:intent}` for expensive components where a visible island is a useful hint, but a real pointer, focus, or touch signal should win. Soft visible prefetch runs at low priority and is skipped when the browser reports save-data or a slow 2g connection. Pointer, focus, and touch intent runs at high priority and can reprioritize a queued job.
 
 You can inspect the page-scoped manifest in application code or browser tests:
 
@@ -97,6 +100,7 @@ const components = {
 export default createReactIsland({
   availableComponents: components,
   resolve: (name) => components[name]?.(),
+  preloadUrls: (name) => viteManifestUrlsFor(name),
 });
 ```
 
@@ -109,10 +113,13 @@ const modules = import.meta.glob("./**/*.vue");
 
 export default createVueIsland({
   resolve: (name) => modules[`./${name}.vue`]?.(),
+  preloadUrls: (name) => viteManifestUrlsFor(name),
 });
 ```
 
 You can still pass a plain synchronous component map. Async registries are the recommended default for larger apps.
+
+`preloadUrls(name)` is optional. When provided, it should return concrete module URLs, usually from the Vite manifest, and LiveIslands inserts them as `<link rel="modulepreload">` before resolving the component. The runtime includes the inserted URL count in the `live-islands:prefetch:modulepreload` and `live-islands:prefetch:load` events.
 
 Run the full installer verifier after wiring async registries. It checks that the client build actually emitted lazy chunks:
 

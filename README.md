@@ -13,7 +13,7 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
 - Vue composables for events, navigation, forms, uploads, connection state, and slot injection
 - Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
-- Page-scoped island manifest and smart `prefetch={...}` policies for component chunks
+- Page-scoped island manifest and smart `prefetch={...}` policies for component chunks, including intent-aware prefetch
 - Lazy React/Vue hook adapters, so the Phoenix entrypoint does not pay for framework runtimes before an island needs them
 - Deferred server islands with signed SSR fetches, fallback HTML, cache headers, and runtime timing events
 - Vite manifest verification for lazy island chunks in production builds
@@ -53,6 +53,7 @@ const hooks = getIslandHooks({
   react: createReactIsland({
     availableComponents: modules,
     resolve: (name) => modules[`./react-components/${name}.jsx`]?.(),
+    preloadUrls: (name) => viteManifestUrlsFor(name),
   }),
   vue: createVueIsland({ resolve: vueResolver }),
   prefetch: { scope: "page" },
@@ -73,6 +74,8 @@ end
 <.react name="DashboardCard" title={@title} client={:visible} prefetch={:idle} />
 
 <.vue v-component="UserPanel" client={:visible} prefetch={:hover} user={@user} v-on:save={JS.push("save")} />
+
+<.react name="ExpensiveChart" client={:visible} prefetch={:intent} />
 
 <.react_server name="StaticCard" title={@title} />
 
@@ -119,7 +122,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, measures initial route bytes, records FCP/LCP/hydration/deferred timing, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 

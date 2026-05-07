@@ -471,6 +471,7 @@ defmodule LiveIslands do
   defp normalize_prefetch(:hover), do: "hover"
   defp normalize_prefetch(:tap), do: "tap"
   defp normalize_prefetch(:interaction), do: "interaction"
+  defp normalize_prefetch(:intent), do: "intent"
   defp normalize_prefetch(:none), do: "none"
   defp normalize_prefetch({:media, query}), do: {:media, query}
   defp normalize_prefetch({"media", query}), do: {:media, query}
@@ -483,13 +484,14 @@ defmodule LiveIslands do
   defp normalize_prefetch("hover"), do: "hover"
   defp normalize_prefetch("tap"), do: "tap"
   defp normalize_prefetch("interaction"), do: "interaction"
+  defp normalize_prefetch("intent"), do: "intent"
   defp normalize_prefetch("none"), do: "none"
   defp normalize_prefetch("media"), do: "media"
   defp normalize_prefetch(value) when is_binary(value), do: value
 
   defp normalize_prefetch(value) do
     raise ArgumentError,
-          "LiveIslands prefetch must be :load, :idle, :visible, :hover, :tap, :interaction, :none, {:media, query}, {:custom, name}, or a matching string; got #{inspect(value)}"
+          "LiveIslands prefetch must be :load, :idle, :visible, :hover, :tap, :interaction, :intent, :none, {:media, query}, {:custom, name}, or a matching string; got #{inspect(value)}"
   end
 
   defp calculate_props_diff(props, %{__changed__: changed}) do

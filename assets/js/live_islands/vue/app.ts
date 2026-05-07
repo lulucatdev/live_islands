@@ -79,6 +79,7 @@ export const createVueIsland = ({
   resolve,
   setup,
   availableComponents,
+  preloadUrls,
 }: VueIslandOptions) => {
   if (typeof resolve !== "function") {
     throw new Error(
@@ -124,5 +125,6 @@ export const createVueIsland = ({
     setup: setup || defaultSetup,
     resolve: load,
     preload: load,
+    preloadUrls,
   };
 };
