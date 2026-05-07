@@ -20,6 +20,7 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
 - Server-only zero-JS proofs for hookless React and Vue SSR islands
+- Route-level CSS-only shells for pages that should skip the app JavaScript entry
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
 - Production benchmark suite for initial route bytes, SSR assertions, server-only zero-JS proofs, lazy chunks, KaTeX, and PDF.js
 
@@ -125,7 +126,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, or load React/Vue component chunks, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 

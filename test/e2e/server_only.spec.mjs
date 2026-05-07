@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const forbiddenClientChunk = (url) =>
-  /\/react\/hooks|\/vue\/hooks|react-dom|runtime-core\.esm|\/react-components\/benchmark-static-report|\/vue-components\/benchmark-probe|\/assets\/(benchmark-static-report|benchmark-probe|hooks-)/.test(
+  /\/js\/app\.js|\/assets\/app-[^/]+\.js|@vite\/client|@react-refresh|\/react\/hooks|\/vue\/hooks|react-dom|runtime-core\.esm|\/react-components\/benchmark-static-report|\/vue-components\/benchmark-probe|\/assets\/(benchmark-static-report|benchmark-probe|hooks-)/.test(
     url,
   );
 
@@ -48,8 +48,14 @@ test("server-only islands render without hydration or framework chunks", async (
     /.+/,
   );
 
-  const manifest = await page.evaluate(
-    () => window.__liveIslandsPrefetch?.manifest?.() || [],
+  const manifest = await page.evaluate(() =>
+    [...document.querySelectorAll("[data-framework][data-name]")].map((el) => ({
+      framework: el.getAttribute("data-framework"),
+      name: el.getAttribute("data-name"),
+      client: el.getAttribute("data-client"),
+      prefetch: el.getAttribute("data-prefetch"),
+      serverOnly: el.hasAttribute("data-server-only"),
+    })),
   );
   expect(manifest).toEqual(
     expect.arrayContaining([
@@ -69,6 +75,21 @@ test("server-only islands render without hydration or framework chunks", async (
       }),
     ]),
   );
+
+  const shell = await page.evaluate(() => ({
+    appJsLoaded: "liveSocket" in window,
+    prefetchRuntimeLoaded: "__liveIslandsPrefetch" in window,
+    deferredRuntimeLoaded: "__liveIslandsDeferred" in window,
+    moduleScripts: [...document.querySelectorAll("script[type='module']")].map(
+      (script) => script.getAttribute("src") || "inline",
+    ),
+  }));
+  expect(shell).toEqual({
+    appJsLoaded: false,
+    prefetchRuntimeLoaded: false,
+    deferredRuntimeLoaded: false,
+    moduleScripts: [],
+  });
 
   const events = await page.evaluate(() => window.__serverOnlyEvents);
   expect(events).toEqual([]);

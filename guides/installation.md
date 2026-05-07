@@ -118,6 +118,34 @@ entry files so dynamic island chunks share the same module graph.
 </LiveIslands.Reload.vite_assets>
 ```
 
+For server-only routes that should not boot LiveView or island client runtime,
+let the root layout read a route assign and pass only CSS:
+
+```heex
+<% live_islands_assets = assigns[:live_islands_assets] || ["/js/app.js", "/css/app.css"] %>
+
+<LiveIslands.Reload.vite_assets assets={live_islands_assets}>
+  <link
+    :if={Enum.member?(live_islands_assets, "/css/app.css")}
+    phx-track-static
+    rel="stylesheet"
+    href={~p"/assets/app.css"}
+  />
+  <script
+    :if={Enum.member?(live_islands_assets, "/js/app.js")}
+    type="module"
+    phx-track-static
+    src={~p"/assets/app.js"}
+  >
+  </script>
+</LiveIslands.Reload.vite_assets>
+```
+
+Then a controller action can use
+`assign(conn, :live_islands_assets, ["/css/app.css"])` before rendering. In dev,
+`vite_assets` also skips the Vite client and React refresh preamble when the
+requested asset list has no JavaScript entry.
+
 Add component roots and an SSR entrypoint:
 
 - `assets/react-components/index.{js,jsx,ts,tsx}`

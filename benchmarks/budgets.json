@@ -6,10 +6,11 @@
     "maxLastHydratedMs": 2500
   },
   "serverOnly": {
-    "maxTotalBytes": 500000,
-    "maxJsBytes": 420000,
+    "maxTotalBytes": 100000,
+    "maxJsBytes": 0,
     "maxHydratedIslands": 0,
-    "maxForbiddenClientChunks": 0
+    "maxForbiddenClientChunks": 0,
+    "maxScriptResponses": 0
   },
   "benchmarks": {
     "maxInitialTotalBytes": 700000,

@@ -15,7 +15,7 @@ benchmark routes in Chromium, and records:
 - Vite manifest dynamic island chunks
 - SSR content present in the initial HTML
 - server-only and deferred island hook absence
-- `/server-only` zero-JS evidence: no island hooks, hydration events, prefetch loads, or React/Vue client component chunks
+- `/server-only` zero-JS evidence: no app entry, module scripts, LiveSocket boot, island hooks, hydration events, prefetch loads, or React/Vue client component chunks
 - deferred server island fallback visibility, final HTML fetch bytes, and final HTML absence from the shell response
 - page-scoped island manifests after route navigation
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
@@ -50,10 +50,11 @@ Node version, and Phoenix production settings.
 
 Budgets live in `benchmarks/budgets.json`. They intentionally track total
 network bytes, unique URL bytes, app entry bytes, runtime timings, server-only
-zero-JS violations, deferred island bytes, intent prefetch bytes, and relative release-to-release
+shell JavaScript, zero-JS violations, deferred island bytes, intent prefetch bytes, and relative release-to-release
 regressions. This catches duplicate entrypoint loads, real bundle growth, slower
 hydration, slower deferred SSR fetches, premature intent loads, and accidental
-loss of lazy framework loading or hookless server-only rendering.
+loss of lazy framework loading, hookless server-only rendering, or CSS-only shell
+behavior.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.

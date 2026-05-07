@@ -12,6 +12,12 @@ defmodule LiveIslands.Reload do
     doc: "optional path to the Vite build manifest for production asset tags"
   )
 
+  attr(:dev_client, :any,
+    default: :auto,
+    doc:
+      "whether to include Vite dev client scripts; defaults to true only when JavaScript assets are present"
+  )
+
   slot(:inner_block, required: true, doc: "what should be rendered when Vite path is not defined")
 
   @doc """
@@ -20,6 +26,13 @@ defmodule LiveIslands.Reload do
   def vite_assets(assigns) do
     vite_host = Application.get_env(:live_islands, :vite_host)
 
+    javascripts =
+      for(
+        path <- assigns.assets,
+        String.ends_with?(path, ".js") || String.ends_with?(path, ".ts"),
+        do: path
+      )
+
     assigns =
       assigns
       |> assign(:vite_host, vite_host)
@@ -27,14 +40,8 @@ defmodule LiveIslands.Reload do
         :stylesheets,
         for(path <- assigns.assets, String.ends_with?(path, ".css"), do: path)
       )
-      |> assign(
-        :javascripts,
-        for(
-          path <- assigns.assets,
-          String.ends_with?(path, ".js") || String.ends_with?(path, ".ts"),
-          do: path
-        )
-      )
+      |> assign(:javascripts, javascripts)
+      |> assign(:dev_client?, dev_client?(assigns.dev_client, javascripts))
       |> assign(
         :production_assets,
         if(vite_host,
@@ -47,15 +54,17 @@ defmodule LiveIslands.Reload do
     # https://vitejs.dev/guide/backend-integration.html
     ~H"""
     <%= if @vite_host do %>
-      <script type="module">
-        import RefreshRuntime from '<%= LiveIslands.SSR.ViteJS.vite_path("@react-refresh") %>'
-        RefreshRuntime.injectIntoGlobalHook(window)
-        window.$RefreshReg$ = () => {}
-        window.$RefreshSig$ = () => (type) => type
-        window.__vite_plugin_react_preamble_installed__ = true
-      </script>
-      <script type="module" src={LiveIslands.SSR.ViteJS.vite_path("@vite/client")}>
-      </script>
+      <%= if @dev_client? do %>
+        <script type="module">
+          import RefreshRuntime from '<%= LiveIslands.SSR.ViteJS.vite_path("@react-refresh") %>'
+          RefreshRuntime.injectIntoGlobalHook(window)
+          window.$RefreshReg$ = () => {}
+          window.$RefreshSig$ = () => (type) => type
+          window.__vite_plugin_react_preamble_installed__ = true
+        </script>
+        <script type="module" src={LiveIslands.SSR.ViteJS.vite_path("@vite/client")}>
+        </script>
+      <% end %>
       <link :for={path <- @stylesheets} rel="stylesheet" href={LiveIslands.SSR.ViteJS.vite_path(path)} />
       <script :for={path <- @javascripts} type="module" src={LiveIslands.SSR.ViteJS.vite_path(path)}>
       </script>
@@ -81,6 +90,9 @@ defmodule LiveIslands.Reload do
     """
   end
 
+  defp dev_client?(:auto, javascripts), do: javascripts != []
+  defp dev_client?(value, _javascripts), do: value == true
+
   defp empty_production_assets do
     %{found?: false, stylesheets: [], javascripts: []}
   end
@@ -88,26 +100,37 @@ defmodule LiveIslands.Reload do
   defp production_assets(assets, manifest_path) do
     case read_manifest(manifest_path) do
       {:ok, manifest} ->
-        entries =
-          assets
-          |> Enum.map(&normalize_asset/1)
+        normalized_assets = Enum.map(assets, &normalize_asset/1)
+
+        javascript_entries =
+          normalized_assets
+          |> Enum.filter(&javascript_asset?/1)
           |> Enum.flat_map(&manifest_entries(manifest, &1))
 
+        stylesheet_entries =
+          normalized_assets
+          |> Enum.filter(&String.ends_with?(&1, ".css"))
+          |> Enum.flat_map(&stylesheet_manifest_entries(manifest, &1))
+
         stylesheets =
-          entries
-          |> Enum.flat_map(&Map.get(&1, "css", []))
+          (javascript_entries ++ stylesheet_entries)
+          |> Enum.flat_map(&stylesheet_files/1)
           |> Enum.map(&asset_path/1)
           |> Enum.uniq()
 
         javascripts =
-          entries
+          javascript_entries
           |> Enum.map(&Map.get(&1, "file"))
           |> Enum.reject(&is_nil/1)
-          |> Enum.filter(&(String.ends_with?(&1, ".js") or String.ends_with?(&1, ".mjs")))
+          |> Enum.filter(&javascript_asset?/1)
           |> Enum.map(&asset_path/1)
           |> Enum.uniq()
 
-        %{found?: entries != [], stylesheets: stylesheets, javascripts: javascripts}
+        %{
+          found?: javascript_entries != [] or stylesheet_entries != [],
+          stylesheets: stylesheets,
+          javascripts: javascripts
+        }
 
       _error ->
         empty_production_assets()
@@ -157,11 +180,47 @@ defmodule LiveIslands.Reload do
     end
   end
 
+  defp stylesheet_manifest_entries(manifest, path) do
+    case manifest_entries(manifest, path) do
+      [] -> infer_stylesheet_entries(manifest, path)
+      entries -> entries
+    end
+  end
+
+  defp infer_stylesheet_entries(manifest, path) do
+    requested_name = path |> Path.basename() |> Path.rootname()
+
+    manifest
+    |> Enum.flat_map(fn {_key, value} ->
+      entry_name =
+        value
+        |> Map.get("src", Map.get(value, "file", ""))
+        |> Path.basename()
+        |> Path.rootname()
+
+      if Map.get(value, "name") == requested_name or entry_name == requested_name do
+        [value]
+      else
+        []
+      end
+    end)
+  end
+
   defp find_manifest_entry_by_src(manifest, path) do
     Enum.find_value(manifest, fn {_key, value} ->
       if Map.get(value, "src") == path, do: value
     end)
   end
+
+  defp stylesheet_files(entry) do
+    file = Map.get(entry, "file")
+    own_file = if is_binary(file) and String.ends_with?(file, ".css"), do: [file], else: []
+
+    Map.get(entry, "css", []) ++ own_file
+  end
+
+  defp javascript_asset?(path),
+    do: String.ends_with?(path, ".js") or String.ends_with?(path, ".mjs")
 
   defp asset_path(file), do: "/assets/#{file}"
 end

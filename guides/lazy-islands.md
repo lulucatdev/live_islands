@@ -160,9 +160,9 @@ Server-only islands do not attach a LiveView hook and do not use `phx-update="ig
 The example app includes `/server-only` as a zero-JS proof page. Its e2e test
 and benchmark assertions verify that the React and Vue server-only islands render
 HTML, emit no hydration or prefetch events, and do not load their React/Vue
-client component chunks. The Phoenix root layout may still load the normal app
-entry; the guarantee is that these islands themselves do not pull client
-framework work into the route.
+client component chunks. The route also assigns a CSS-only asset list to the
+root layout, so it does not load the Phoenix app entry, LiveSocket, Vite dev
+client, or LiveIslands client runtimes.
 
 Deferred server islands go one step further: they render fallback HTML in the
 initial response, then fetch final SSR HTML through `LiveIslands.Deferred`.

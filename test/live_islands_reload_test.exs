@@ -14,6 +14,14 @@ defmodule LiveIslandsReloadTest do
     """
   end
 
+  def stylesheet_only_component(assigns) do
+    ~H"""
+    <LiveIslands.Reload.vite_assets assets={["/css/app.css"]}>
+      <link phx-track-static rel="stylesheet" href="/assets/app.css" />
+    </LiveIslands.Reload.vite_assets>
+    """
+  end
+
   setup do
     previous =
       Map.new([:vite_host, :vite_manifest_path, :otp_app], fn key ->
@@ -57,11 +65,57 @@ defmodule LiveIslandsReloadTest do
     refute html =~ ~s(src="/assets/app.js")
   end
 
+  test "renders stylesheet-only Vite manifest assets without the JavaScript entry" do
+    manifest_path = tmp_manifest_path()
+
+    File.write!(manifest_path, """
+    {
+      "js/app.js": {
+        "file": "app-BnY7NwGx.js",
+        "name": "app",
+        "src": "js/app.js",
+        "isEntry": true,
+        "css": ["app-BECRn7UL.css"]
+      }
+    }
+    """)
+
+    Application.put_env(:live_islands, :vite_manifest_path, manifest_path)
+
+    html = render_component(&stylesheet_only_component/1)
+
+    assert html =~ ~s(href="/assets/app-BECRn7UL.css")
+    refute html =~ ~s(src="/assets/app-BnY7NwGx.js")
+    refute html =~ ~s(src="/assets/app.js")
+  end
+
   test "falls back to the slot when the Vite manifest is unavailable" do
     html = render_component(&assets_component/1)
 
     assert html =~ ~s(href="/assets/app.css")
     assert html =~ ~s(src="/assets/app.js")
+  end
+
+  test "renders Vite dev client only when JavaScript assets are present" do
+    Application.put_env(:live_islands, :vite_host, "http://localhost:5173")
+
+    html = render_component(&assets_component/1)
+
+    assert html =~ ~s(src="http://localhost:5173/@vite/client")
+    assert html =~ ~s(src="http://localhost:5173/js/app.js")
+    assert html =~ ~s(href="http://localhost:5173/css/app.css")
+    assert html =~ "@react-refresh"
+  end
+
+  test "skips Vite dev client for stylesheet-only assets" do
+    Application.put_env(:live_islands, :vite_host, "http://localhost:5173")
+
+    html = render_component(&stylesheet_only_component/1)
+
+    assert html =~ ~s(href="http://localhost:5173/css/app.css")
+    refute html =~ "@vite/client"
+    refute html =~ "@react-refresh"
+    refute html =~ ~s(src="http://localhost:5173/js/app.js")
   end
 
   defp tmp_manifest_path do

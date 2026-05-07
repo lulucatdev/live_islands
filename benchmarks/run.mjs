@@ -508,6 +508,10 @@ const serverOnlyForbiddenClientChunk = (url) => {
   const pathname = new URL(url).pathname;
 
   return [
+    /\/js\/app\.js$/,
+    /\/assets\/app-[^/]+\.js$/,
+    /@vite\/client/,
+    /@react-refresh/,
     /\/react\/hooks/,
     /\/vue\/hooks/,
     /react-dom/,
@@ -587,9 +591,27 @@ async function collectPage(browser, pathname, options = {}) {
     };
   }
 
-  const manifest = await page.evaluate(
-    () => window.__liveIslandsPrefetch?.manifest?.() || [],
-  );
+  const manifest = await page.evaluate(() => {
+    const runtimeManifest = window.__liveIslandsPrefetch?.manifest?.();
+    if (runtimeManifest?.length > 0) return runtimeManifest;
+
+    return [...document.querySelectorAll("[data-framework][data-name]")].map(
+      (el) => ({
+        page:
+          el
+            .closest("[data-live-islands-page]")
+            ?.getAttribute("data-live-islands-page") ||
+          `${window.location.pathname}${window.location.search}`,
+        framework: el.getAttribute("data-framework"),
+        name: el.getAttribute("data-name"),
+        client: el.getAttribute("data-client") || "load",
+        prefetch: el.getAttribute("data-prefetch") || "none",
+        ssr: el.getAttribute("data-ssr") === "true",
+        serverOnly: el.hasAttribute("data-server-only"),
+        deferred: el.hasAttribute("data-deferred"),
+      }),
+    );
+  });
   const performanceSummary = await page.evaluate(() => {
     const navigation = performance.getEntriesByType("navigation")[0];
 
@@ -608,6 +630,25 @@ async function collectPage(browser, pathname, options = {}) {
       (link) => link.href,
     ),
   );
+  const shell = await page.evaluate(() => {
+    const scripts = [...document.querySelectorAll("script")].map((script) => ({
+      type: script.getAttribute("type") || "",
+      src: script.getAttribute("src") || null,
+      inline: !script.getAttribute("src"),
+    }));
+
+    return {
+      scriptCount: scripts.length,
+      moduleScriptCount: scripts.filter((script) => script.type === "module")
+        .length,
+      moduleScriptSources: scripts
+        .filter((script) => script.type === "module")
+        .map((script) => script.src || "inline"),
+      liveSocketPresent: "liveSocket" in window,
+      prefetchRuntimePresent: "__liveIslandsPrefetch" in window,
+      deferredRuntimePresent: "__liveIslandsDeferred" in window,
+    };
+  });
   const runtimeSummary = await runtimeMetrics(page);
   const zeroJsProof = options.zeroJsProof
     ? {
@@ -618,6 +659,13 @@ async function collectPage(browser, pathname, options = {}) {
           .count(),
         forbiddenClientChunks: initialResponses
           .filter((response) => serverOnlyForbiddenClientChunk(response.url))
+          .map((response) => ({
+            url: response.url.replace(baseURL, ""),
+            bytes: response.bytes,
+            resourceType: response.resourceType,
+          })),
+        scriptResponses: initialResponses
+          .filter((response) => response.resourceType === "script")
           .map((response) => ({
             url: response.url.replace(baseURL, ""),
             bytes: response.bytes,
@@ -635,6 +683,7 @@ async function collectPage(browser, pathname, options = {}) {
     performance: performanceSummary,
     runtime: runtimeSummary,
     modulepreloadLinks,
+    shell,
     zeroJsProof,
     browserErrors,
     manifest: manifest.map((island) => ({
@@ -1060,6 +1109,28 @@ function assertBenchmarks(result) {
   if (serverOnlyPage.runtime?.prefetch?.loadedCount > 0) {
     failures.push("server-only zero-JS page prefetched client chunks");
   }
+  if (serverOnlyPage.network?.jsBytes > 0) {
+    failures.push("server-only zero-JS page loaded JavaScript bytes");
+  }
+  if (serverOnlyPage.zeroJsProof?.scriptResponses.length > 0) {
+    failures.push(
+      `server-only zero-JS page loaded script responses: ${serverOnlyPage.zeroJsProof.scriptResponses
+        .map((response) => response.url)
+        .join("; ")}`,
+    );
+  }
+  if (serverOnlyPage.shell?.moduleScriptCount > 0) {
+    failures.push("server-only zero-JS page rendered module script tags");
+  }
+  if (serverOnlyPage.shell?.liveSocketPresent) {
+    failures.push("server-only zero-JS page booted LiveSocket");
+  }
+  if (serverOnlyPage.shell?.prefetchRuntimePresent) {
+    failures.push("server-only zero-JS page booted the prefetch runtime");
+  }
+  if (serverOnlyPage.shell?.deferredRuntimePresent) {
+    failures.push("server-only zero-JS page booted the deferred runtime");
+  }
   if (serverOnlyPage.zeroJsProof?.forbiddenClientChunks.length > 0) {
     failures.push(
       `server-only zero-JS page loaded forbidden client chunks: ${serverOnlyPage.zeroJsProof.forbiddenClientChunks
@@ -1440,6 +1511,11 @@ function budgetFailures(result, budget) {
       budget.serverOnly?.maxForbiddenClientChunks,
     ],
     [
+      "server-only script responses",
+      result.pages.serverOnly.zeroJsProof?.scriptResponses.length,
+      budget.serverOnly?.maxScriptResponses,
+    ],
+    [
       "benchmark initial unique bytes",
       result.pages.benchmarks.network.uniqueBytes,
       budget.benchmarks?.maxInitialUniqueBytes,
@@ -1658,6 +1734,12 @@ function markdown(result) {
     `- LiveView hook count: ${result.pages.serverOnly.zeroJsProof.hookCount}`,
     `- Hydrated islands: ${result.pages.serverOnly.runtime.islands.hydratedCount}`,
     `- Prefetched chunks: ${result.pages.serverOnly.runtime.prefetch.loadedCount}`,
+    `- JavaScript bytes: ${formatBytes(result.pages.serverOnly.network.jsBytes)}`,
+    `- Script responses: ${result.pages.serverOnly.zeroJsProof.scriptResponses.length}`,
+    `- Module script tags: ${result.pages.serverOnly.shell.moduleScriptCount}`,
+    `- LiveSocket booted: ${result.pages.serverOnly.shell.liveSocketPresent}`,
+    `- Prefetch runtime booted: ${result.pages.serverOnly.shell.prefetchRuntimePresent}`,
+    `- Deferred runtime booted: ${result.pages.serverOnly.shell.deferredRuntimePresent}`,
     `- Forbidden client chunks: ${result.pages.serverOnly.zeroJsProof.forbiddenClientChunks.length}`,
     "",
     "## Sample Stability",
@@ -1945,7 +2027,7 @@ async function main() {
 
     try {
       const result = {
-        version: 6,
+        version: 7,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,

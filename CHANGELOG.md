@@ -5,6 +5,15 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.9.0
+
+Route-level shell optimization for server-only pages.
+
+- Added CSS-only root-layout asset support so a route can render server-only React/Vue SSR islands without loading the Phoenix app entry.
+- Updated `LiveIslands.Reload.vite_assets` to skip Vite dev client and React refresh scripts automatically when no JavaScript assets are requested.
+- Extended `/server-only` e2e coverage to prove there are no module scripts, no LiveSocket boot, no prefetch/deferred runtime, no script responses, and no forbidden framework chunks.
+- Extended benchmark schema `version: 7` with shell evidence and zero-JS budgets that require `/server-only` JavaScript bytes and script responses to stay at zero.
+
 ## v0.8.0
 
 Server-only zero-JS proofs.

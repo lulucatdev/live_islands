@@ -41,3 +41,18 @@ Borrowed from Fresh and Marko.
 - Benchmarks: a dedicated `/server-only` production route, server-only byte
   totals, hook and hydration counts, forbidden chunk counts, sample stability
   rows, budgets, and release-to-release comparison metrics
+
+## v0.9 Route-Level Shell Optimization
+
+Borrowed from Astro layouts and Fresh islands.
+
+- API: root layouts can pass a route-controlled asset list to
+  `LiveIslands.Reload.vite_assets`, including CSS-only shells for static SSR
+  pages
+- Runtime: `vite_assets` skips Vite dev client and React refresh when the asset
+  list contains no JavaScript entry
+- Tests: `/server-only` browser e2e proves no module scripts, no LiveSocket, no
+  prefetch/deferred runtime globals, no script responses, and no forbidden
+  framework chunks
+- Benchmarks: schema `version: 7` records shell evidence and enforces zero
+  JavaScript bytes/script responses for `/server-only`

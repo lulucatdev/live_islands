@@ -1,6 +1,8 @@
 defmodule LiveIslandsExamplesWeb.PageController do
   use LiveIslandsExamplesWeb, :controller
 
+  @css_only_assets ["/css/app.css"]
+
   def home(conn, _params) do
     redirect(conn, to: ~p"/simple")
   end
@@ -23,6 +25,7 @@ defmodule LiveIslandsExamplesWeb.PageController do
 
   def server_only(conn, _params) do
     conn
+    |> assign(:live_islands_assets, @css_only_assets)
     |> put_layout(false)
     |> render(:server_only,
       metrics: metrics(),

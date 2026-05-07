@@ -33,6 +33,7 @@ LiveIslands requires these project-level integration points.
 - Use async registries in both roots (`import()` or `import.meta.glob`) so Vite emits lazy chunks.
 - Ensure `assets/css/app.css` imports Tailwind and scans `../react-components` and `../vue-components`.
 - Ensure root layout loads Vite assets with `LiveIslands.Reload.vite_assets`; it uses Vite dev assets in development and the Vite manifest in production.
+- For routes that only render server-side islands, optionally let the root layout read a route assign such as `:live_islands_assets` so those routes can request only `["/css/app.css"]` and skip the app JavaScript entry.
 
 ## Tailwind and daisyUI
 
