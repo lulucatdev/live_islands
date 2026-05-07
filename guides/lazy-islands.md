@@ -58,7 +58,7 @@ Then annotate islands with `prefetch`:
 
 Supported prefetch policies are `:load`, `:idle`, `:visible`, `:hover`, `:tap`, `:interaction`, `{:media, query}`, and `:none`.
 
-The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early.
+The runtime builds a manifest from the current LiveView DOM using each island's `data-framework` and `data-name`. It only preloads chunks for islands present on the current page, and it does not hydrate or mount the component early. Prefetches run through a small bounded queue and dispatch `live-islands:prefetch:queue`, `live-islands:prefetch:start`, `live-islands:prefetch:load`, and `live-islands:prefetch:error`, so browser tests and benchmarks can prove that prefetch remains page scoped.
 
 You can inspect the page-scoped manifest in application code or browser tests:
 
@@ -149,6 +149,19 @@ Use `<.react_server>` and `<.vue_server>` when a component should render through
 ```
 
 Server-only islands do not attach a LiveView hook and do not use `phx-update="ignore"`, so LiveView can replace their HTML on future renders. This is closer to Nuxt/Astro server islands than to a `client={:none}` hydrated island shell.
+
+Deferred server islands go one step further: they render fallback HTML in the
+initial response, then fetch final SSR HTML through `LiveIslands.Deferred`.
+Use them when a server-only island is useful but should not block the page shell:
+
+```heex
+<.react_server name="SlowReport" defer={true}>
+  <:fallback>Loading report...</:fallback>
+</.react_server>
+```
+
+See [the SSR guide](ssr.md#deferred-server-islands) for the router endpoint and
+cache-control setup.
 
 ## Diagnostics
 

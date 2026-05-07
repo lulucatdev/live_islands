@@ -14,6 +14,13 @@ defmodule LiveIslandsExamplesWeb.Router do
   #   plug :accepts, ["json"]
   # end
 
+  scope "/" do
+    pipe_through :browser
+
+    forward "/live-islands/deferred", LiveIslands.Deferred,
+      endpoint: LiveIslandsExamplesWeb.Endpoint
+  end
+
   scope "/", LiveIslandsExamplesWeb do
     pipe_through :browser
 

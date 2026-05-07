@@ -32,14 +32,7 @@ export default defineConfig(({ command }) => {
       // so they're not optimized for development by vite by default
       // we want to enable it for better DX
       // more https://vitejs.dev/guide/dep-pre-bundling#monorepos-and-linked-dependencies
-      include: [
-        "live_islands",
-        "live_islands/react",
-        "live_islands/vue",
-        "phoenix",
-        "phoenix_html",
-        "phoenix_live_view",
-      ],
+      include: ["phoenix", "phoenix_html", "phoenix_live_view"],
     },
     build: {
       commonjsOptions: { transformMixedEsModules: true },

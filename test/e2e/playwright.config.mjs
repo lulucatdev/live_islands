@@ -23,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${port} VITE_PORT=${vitePort} VITE_HOST=http://localhost:${vitePort} mix phx.server`,
+    command: `MIX_ENV=dev PORT=${port} VITE_PORT=${vitePort} VITE_HOST=http://localhost:${vitePort} mix phx.server`,
     cwd: exampleCwd,
     url: `${baseURL}/capabilities`,
     reuseExistingServer: !process.env.CI,

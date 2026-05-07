@@ -13,8 +13,9 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - React hooks for LiveView events, event replies, navigation, connection state, forms, and uploads
 - Vue composables for events, navigation, forms, uploads, connection state, and slot injection
 - Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
-- Page-scoped island manifest and `prefetch={...}` policies for component chunks
+- Page-scoped island manifest and smart `prefetch={...}` policies for component chunks
 - Lazy React/Vue hook adapters, so the Phoenix entrypoint does not pay for framework runtimes before an island needs them
+- Deferred server islands with signed SSR fetches, fallback HTML, cache headers, and runtime timing events
 - Vite manifest verification for lazy island chunks in production builds
 - Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
@@ -74,6 +75,21 @@ end
 <.vue v-component="UserPanel" client={:visible} prefetch={:hover} user={@user} v-on:save={JS.push("save")} />
 
 <.react_server name="StaticCard" title={@title} />
+
+<.react_server name="SlowReport" defer={true} defer_cache_control="public, max-age=60">
+  <:fallback>Loading report...</:fallback>
+</.react_server>
+```
+
+Deferred server islands need the signed endpoint mounted in your router:
+
+```elixir
+config :live_islands, deferred_endpoint: MyAppWeb.Endpoint
+```
+
+```elixir
+forward "/live-islands/deferred", LiveIslands.Deferred,
+  endpoint: MyAppWeb.Endpoint
 ```
 
 ## Install
@@ -103,7 +119,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only islands, measures initial route bytes, records FCP/LCP/hydration timing, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, measures initial route bytes, records FCP/LCP/hydration/deferred timing, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 

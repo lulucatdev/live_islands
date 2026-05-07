@@ -5,6 +5,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.6.0
+
+Deferred server islands and measurable prefetch behavior.
+
+- Added signed deferred server islands for `<.react_server defer={true}>` and `<.vue_server defer={true}>`, including fallback slots, timeout attributes, cache-control metadata, and the `LiveIslands.Deferred` plug.
+- Added a tiny deferred runtime that fetches final SSR HTML after the shell response and dispatches `live-islands:deferred:*` events for benchmarks and tests.
+- Upgraded island prefetching into a smart observable queue with bounded concurrency, optional modulepreload URLs, and `live-islands:prefetch:*` runtime events.
+- Extended the benchmark route and runner to verify deferred fallback HTML, no final HTML leak in the shell response, deferred fetch bytes, deferred load timing, and server-only hook absence.
+- Added browser e2e coverage for deferred server islands and moved e2e execution into the main GitHub Tests workflow.
+- Opted GitHub workflows into the Node 24 JavaScript action runtime ahead of the runner migration.
+
 ## v0.5.0
 
 Runtime splitting and benchmark-driven regression policy.

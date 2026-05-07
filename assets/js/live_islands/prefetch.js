@@ -3,6 +3,15 @@ import { describeIslandElement, warnLiveIslands } from "./diagnostics.js";
 const ISLAND_SELECTOR = "[data-framework][data-name]";
 const PAGE_SCOPE_SELECTOR = "[data-live-islands-page], [data-phx-main]";
 const PREFETCHED = new Set();
+const MODULE_PRELOADED = new Set();
+
+const dispatchPrefetch = (name, el, detail = {}) => {
+  window.dispatchEvent(
+    new CustomEvent(`live-islands:prefetch:${name}`, {
+      detail: { el, ...detail },
+    }),
+  );
+};
 
 const onIdle = (callback) => {
   if ("requestIdleCallback" in window) {
@@ -243,6 +252,21 @@ const preloadValue = async (value) => {
   return value;
 };
 
+const preloadModuleUrls = async (urls) => {
+  const resolvedUrls = urls instanceof Promise ? await urls : urls;
+  if (!Array.isArray(resolvedUrls)) return;
+
+  for (const url of resolvedUrls) {
+    if (!url || MODULE_PRELOADED.has(url)) continue;
+    MODULE_PRELOADED.add(url);
+
+    const link = document.createElement("link");
+    link.rel = "modulepreload";
+    link.href = url;
+    document.head.appendChild(link);
+  }
+};
+
 const normalizePreloadApp = (framework, app) => {
   if (!app) return null;
   if (typeof app.preload === "function") return app;
@@ -288,6 +312,7 @@ export function getIslandManifest(rootOrOptions = document, maybeOptions = {}) {
           null,
         ssr: el.getAttribute("data-ssr") === "true",
         serverOnly: truthyAttr(el, "data-server-only"),
+        deferred: truthyAttr(el, "data-deferred"),
       },
     ];
   });
@@ -303,9 +328,51 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     vue: normalizePreloadApp("vue", vue),
   };
   const defaultPolicy = options.defaultPolicy || "none";
+  const maxConcurrent = Math.max(1, Number(options.maxConcurrent || 2));
   const scope = options.scope || "page";
   const scheduled = new WeakMap();
   const cleanups = new Set();
+  const queue = [];
+  let active = 0;
+
+  const runQueue = () => {
+    while (active < maxConcurrent && queue.length > 0) {
+      const job = queue.shift();
+      const startedAt = performance.now();
+      active += 1;
+      dispatchPrefetch("start", job.el, {
+        framework: job.framework,
+        name: job.name,
+      });
+
+      Promise.resolve()
+        .then(() => preloadModuleUrls(job.app.preloadUrls?.(job.name)))
+        .then(() => job.app.preload(job.name))
+        .then(() =>
+          dispatchPrefetch("load", job.el, {
+            framework: job.framework,
+            name: job.name,
+            duration: Math.round(performance.now() - startedAt),
+          }),
+        )
+        .catch((error) => {
+          PREFETCHED.delete(job.key);
+          dispatchPrefetch("error", job.el, {
+            framework: job.framework,
+            name: job.name,
+            message: error?.message || String(error),
+            duration: Math.round(performance.now() - startedAt),
+          });
+          warnLiveIslands(
+            `${describeIslandElement(job.el)} prefetch failed: ${error?.message || error}`,
+          );
+        })
+        .finally(() => {
+          active -= 1;
+          runQueue();
+        });
+    }
+  };
 
   const preload = (el) => {
     const framework = el.getAttribute("data-framework");
@@ -318,12 +385,13 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
     if (PREFETCHED.has(key)) return;
     PREFETCHED.add(key);
 
-    app.preload(name).catch((error) => {
-      PREFETCHED.delete(key);
-      warnLiveIslands(
-        `${describeIslandElement(el)} prefetch failed: ${error?.message || error}`,
-      );
+    queue.push({ app, el, framework, key, name });
+    dispatchPrefetch("queue", el, {
+      framework,
+      name,
+      depth: queue.length,
     });
+    runQueue();
   };
 
   const schedule = (el) => {
@@ -375,6 +443,9 @@ export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
 
     listen("phx:page-loading-stop", scanDocument);
     listen("live-islands:mounted", (event) =>
+      scan(event.detail?.el || document),
+    );
+    listen("live-islands:deferred:load", (event) =>
       scan(event.detail?.el || document),
     );
   };

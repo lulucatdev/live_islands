@@ -10,10 +10,11 @@ benchmark routes in Chromium, and records:
 - unique URL bytes and duplicate request overhead
 - JavaScript and CSS bytes by page
 - app entry bytes and Vite artifact gzip bytes
-- FCP, LCP, hydrated island count, last-hydrated time, and hydration span
+- FCP, LCP, hydrated island count, last-hydrated time, deferred island time, and prefetch event counts
 - Vite manifest dynamic island chunks
 - SSR content present in the initial HTML
-- server-only island hook absence
+- server-only and deferred island hook absence
+- deferred server island fallback visibility, final HTML fetch bytes, and final HTML absence from the shell response
 - page-scoped island manifests after route navigation
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
 - deferred KaTeX and PDF.js bytes loaded after user intent
@@ -45,9 +46,10 @@ summary. Result files are ignored by git because byte counts vary by machine,
 Node version, and Phoenix production settings.
 
 Budgets live in `benchmarks/budgets.json`. They intentionally track total
-network bytes, unique URL bytes, app entry bytes, runtime timings, and relative
-release-to-release regressions. This catches duplicate entrypoint loads, real
-bundle growth, slower hydration, and accidental loss of lazy framework loading.
+network bytes, unique URL bytes, app entry bytes, runtime timings, deferred
+island bytes, and relative release-to-release regressions. This catches
+duplicate entrypoint loads, real bundle growth, slower hydration, slower
+deferred SSR fetches, and accidental loss of lazy framework loading.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.

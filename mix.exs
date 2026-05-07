@@ -2,7 +2,7 @@ defmodule LiveIslands.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/lulucatdev/live_islands"
-  @version "0.5.0"
+  @version "0.6.0"
 
   def project do
     [
@@ -76,6 +76,7 @@ defmodule LiveIslands.MixProject do
         "README.md",
         "guides/installation.md",
         "guides/lazy-islands.md",
+        "guides/performance-roadmap.md",
         "guides/deployment.md",
         "guides/development.md",
         "guides/ssr.md",

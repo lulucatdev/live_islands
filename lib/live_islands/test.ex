@@ -107,6 +107,9 @@ defmodule LiveIslands.Test do
         prefetch_media: attr(island, "data-prefetch-media"),
         ssr: attr(island, "data-ssr") == "true",
         server_only: truthy_attr?(island, "data-server-only"),
+        deferred: truthy_attr?(island, "data-deferred"),
+        defer_src: attr(island, "data-live-islands-defer-src"),
+        defer_state: attr(island, "data-live-islands-defer-state"),
         hook: attr(island, "phx-hook"),
         phx_update: attr(island, "phx-update"),
         class: attr(island, "class")

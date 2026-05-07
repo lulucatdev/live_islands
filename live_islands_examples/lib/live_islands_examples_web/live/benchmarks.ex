@@ -21,6 +21,25 @@ defmodule LiveIslandsExamplesWeb.LiveBenchmarks do
       />
 
       <.react_server
+        id="benchmark_deferred_report"
+        name="BenchmarkDeferredReport"
+        metrics={@metrics}
+        sections={@sections}
+        defer={true}
+        defer_timeout={5000}
+        defer_cache_control="public, max-age=60"
+      >
+        <:fallback>
+          <div
+            data-testid="benchmark-deferred-fallback"
+            class="rounded-md border border-sky-100 bg-sky-50 p-5 text-sky-800"
+          >
+            Loading deferred benchmark report
+          </div>
+        </:fallback>
+      </.react_server>
+
+      <.react_server
         id="benchmark_ssr_summary"
         name="BenchmarkSummary"
         metrics={@metrics}

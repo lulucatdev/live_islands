@@ -10,33 +10,36 @@ defmodule LiveIslands do
   import Phoenix.HTML
 
   alias LiveIslands.Encoder
+  alias LiveIslands.Deferred
   alias LiveIslands.Patch
   alias LiveIslands.Slots
   alias LiveIslands.SSR
   alias Phoenix.LiveView
   alias Phoenix.LiveView.LiveStream
 
-  @react_special_keys ~w(id class ssr diff name socket client client_media prefetch prefetch_media server_only __changed__ __given__)a
+  @defer_special_keys ~w(defer defer_path defer_endpoint defer_token defer_timeout defer_cache_control cache_control fallback)a
+  @react_special_keys ~w(id class ssr diff name socket client client_media prefetch prefetch_media server_only __changed__ __given__)a ++
+                        @defer_special_keys
   @vue_special_keys [
-    :id,
-    :class,
-    :client,
-    :client_media,
-    :prefetch,
-    :prefetch_media,
-    :server_only,
-    :"v-ssr",
-    :"v-diff",
-    :"v-component",
-    :"v-socket",
-    :"v-client",
-    :"v-client-media",
-    :"v-prefetch",
-    :"v-prefetch-media",
-    :"v-inject",
-    :__changed__,
-    :__given__
-  ]
+                      :id,
+                      :class,
+                      :client,
+                      :client_media,
+                      :prefetch,
+                      :prefetch_media,
+                      :server_only,
+                      :"v-ssr",
+                      :"v-diff",
+                      :"v-component",
+                      :"v-socket",
+                      :"v-client",
+                      :"v-client-media",
+                      :"v-prefetch",
+                      :"v-prefetch-media",
+                      :"v-inject",
+                      :__changed__,
+                      :__given__
+                    ] ++ @defer_special_keys
 
   @doc false
   defmacro __using__(_opts) do
@@ -85,6 +88,9 @@ defmodule LiveIslands do
   Server-only islands render through the configured SSR adapter, do not attach a
   LiveView hook, and do not ship island JavaScript. LiveView may replace their
   HTML on later renders because they do not use `phx-update="ignore"`.
+
+  Pass `defer={true}` to render the fallback immediately and fetch the final SSR
+  HTML from the configured deferred endpoint after the page begins loading.
   """
   def react_server(assigns) do
     assigns
@@ -133,6 +139,9 @@ defmodule LiveIslands do
   Server-only islands render through the configured SSR adapter, do not attach a
   LiveView hook, and do not ship island JavaScript. LiveView may replace their
   HTML on later renders because they do not use `phx-update="ignore"`.
+
+  Pass `defer={true}` to render the fallback immediately and fetch the final SSR
+  HTML from the configured deferred endpoint after the page begins loading.
   """
   def vue_server(assigns) do
     assigns
@@ -152,6 +161,7 @@ defmodule LiveIslands do
       assigns
       |> put_island_assigns(config, context, data)
       |> put_ssr_render(context.render_ssr?)
+      |> put_deferred_render(context)
       |> put_computed_changed(context, data)
       |> put_render_flags(config, context)
 
@@ -172,6 +182,10 @@ defmodule LiveIslands do
       data-prefetch-media={@prefetch_media}
       data-ssr={@ssr?}
       data-server-only={@server_only?}
+      data-deferred={@deferred?}
+      data-live-islands-defer-src={@defer_src}
+      data-live-islands-defer-timeout={@defer_timeout}
+      data-live-islands-defer-state={@defer_state}
       data-inject={@inject_target}
       data-inject-slot={@inject_slot}
       phx-update={@phx_update}
@@ -179,7 +193,13 @@ defmodule LiveIslands do
       phx-no-format={@no_format?}
       style={@hidden_style}
       class={@class}
-    ><%= raw(@ssr_html) %></div>
+    >
+      <%= if @deferred? do %>
+        <%= render_slot(@fallback) %>
+      <% else %>
+        <%= raw(@ssr_html) %>
+      <% end %>
+    </div>
     """
   end
 
@@ -193,6 +213,7 @@ defmodule LiveIslands do
     {client, client_media} = client_config(assigns, config)
     {prefetch, prefetch_media} = prefetch_config(assigns, config)
     {inject_target, inject_slot} = inject_config(assigns, config)
+    deferred? = server_only? and defer?(assigns)
 
     %{
       init?: init?,
@@ -207,7 +228,17 @@ defmodule LiveIslands do
       prefetch_media: prefetch_media,
       inject_target: inject_target,
       inject_slot: inject_slot,
-      render_ssr?: render_ssr?(assigns, config, init?, dead?, server_only?, component_name)
+      deferred?: deferred?,
+      defer_path: Map.get(assigns, :defer_path, Deferred.path()),
+      defer_token: Map.get(assigns, :defer_token),
+      defer_endpoint:
+        Map.get(assigns, :defer_endpoint) ||
+          Application.get_env(:live_islands, :deferred_endpoint),
+      defer_timeout: Map.get(assigns, :defer_timeout, 10_000),
+      defer_cache_control:
+        Map.get(assigns, :defer_cache_control) || Map.get(assigns, :cache_control),
+      render_ssr?:
+        render_ssr?(assigns, config, init?, dead?, server_only?, component_name, deferred?)
     }
   end
 
@@ -215,8 +246,9 @@ defmodule LiveIslands do
     Enum.any?(assigns, fn {_key, value} -> match?(%LiveStream{}, value) end)
   end
 
-  defp render_ssr?(assigns, config, init?, dead?, server_only?, component_name) do
+  defp render_ssr?(assigns, config, init?, dead?, server_only?, component_name, deferred?) do
     (server_only? or (init? and dead?)) and
+      not deferred? and
       Map.get(assigns, config.ssr_key, ssr_default()) and not is_nil(component_name)
   end
 
@@ -253,6 +285,7 @@ defmodule LiveIslands do
   defp put_island_assigns(assigns, config, context, data) do
     assigns
     |> Map.put_new(:class, nil)
+    |> Map.put_new(:fallback, [])
     |> Map.put(:__framework, config.framework)
     |> Map.put(:__hook, if(context.server_only?, do: nil, else: config.hook))
     |> Map.put(:__component_name, context.component_name)
@@ -273,17 +306,52 @@ defmodule LiveIslands do
     |> Map.put(:inject_target, context.inject_target)
     |> Map.put(:inject_slot, context.inject_slot)
     |> Map.put(:server_only?, context.server_only?)
+    |> Map.put(:deferred?, context.deferred?)
   end
 
   defp put_ssr_render(assigns, true), do: Map.put(assigns, :ssr_render, ssr_render(assigns))
   defp put_ssr_render(assigns, false), do: Map.put(assigns, :ssr_render, nil)
+
+  defp put_deferred_render(assigns, %{deferred?: false}) do
+    assigns
+    |> Map.put(:defer_src, nil)
+    |> Map.put(:defer_timeout, nil)
+    |> Map.put(:defer_state, nil)
+  end
+
+  defp put_deferred_render(assigns, %{deferred?: true} = context) do
+    if is_nil(context.defer_token) and is_nil(context.defer_endpoint) do
+      raise ArgumentError,
+            "deferred server islands require config :live_islands, :deferred_endpoint or a :defer_endpoint assign"
+    end
+
+    payload = %{
+      framework: assigns.__framework,
+      name: assigns.__component_name,
+      props: Encoder.encode(assigns.props),
+      slots: assigns.slots,
+      cache_control: context.defer_cache_control
+    }
+
+    src =
+      Deferred.signed_path(payload,
+        endpoint: context.defer_endpoint,
+        path: context.defer_path,
+        token: context.defer_token
+      )
+
+    assigns
+    |> Map.put(:defer_src, src)
+    |> Map.put(:defer_timeout, context.defer_timeout)
+    |> Map.put(:defer_state, "pending")
+  end
 
   defp put_computed_changed(assigns, context, data) do
     computed_changed = %{
       props: context.init? or context.dead? or not context.use_diff,
       slots: data.slots != %{},
       handlers: data.handlers != %{},
-      ssr_render: is_map(assigns.ssr_render),
+      ssr_render: is_map(assigns.ssr_render) or context.deferred?,
       props_diff: not context.init? and not context.dead? and context.use_diff,
       streams_diff: context.use_streams_diff
     }
@@ -300,11 +368,21 @@ defmodule LiveIslands do
     |> Map.put(:ssr?, is_map(assigns.ssr_render))
     |> Map.put(:hidden_style, if(assigns.inject_target, do: "display:none", else: nil))
     |> Map.put(:no_format?, if(context.server_only?, do: nil, else: config.framework == :vue))
-    |> Map.put(:phx_update, if(context.server_only?, do: nil, else: "ignore"))
+    |> Map.put(
+      :phx_update,
+      if(context.server_only? and not context.deferred?, do: nil, else: "ignore")
+    )
   end
 
   defp ssr_html(%{} = render), do: render[:html]
   defp ssr_html(_render), do: nil
+
+  defp defer?(assigns) do
+    case Map.get(assigns, :defer, false) do
+      value when value in [true, :load, "true", "load", "defer"] -> true
+      _ -> false
+    end
+  end
 
   defp validate_component!(assigns, %{require_component: true}) do
     if is_nil(assigns.__component_name) do

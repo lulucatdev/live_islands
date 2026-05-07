@@ -13,7 +13,9 @@
     "maxHeavyInteractionJsBytes": 2100000,
     "maxLargestContentfulPaintMs": 3000,
     "maxLastHydratedMs": 3000,
-    "maxHeavyInteractionDurationMs": 1000
+    "maxHeavyInteractionDurationMs": 1000,
+    "maxDeferredLastLoadedMs": 2500,
+    "maxDeferredHtmlBytes": 50000
   },
   "artifacts": {
     "maxGzipBytes": 1900000,
@@ -33,6 +35,10 @@
       "capabilities-to-benchmarks JS": {
         "maxDeltaBytes": 10000,
         "maxDeltaPercent": 20
+      },
+      "benchmark last island hydrated": {
+        "maxDeltaMs": 500,
+        "maxDeltaPercent": 50
       },
       "heavy interaction duration": {
         "maxDeltaMs": 500,

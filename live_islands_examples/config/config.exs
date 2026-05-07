@@ -9,7 +9,8 @@ import Config
 
 config :live_islands,
   otp_app: :live_islands_examples,
-  ssr_module: LiveIslands.SSR.NodeJS
+  ssr_module: LiveIslands.SSR.NodeJS,
+  deferred_endpoint: LiveIslandsExamplesWeb.Endpoint
 
 config :live_islands_examples,
   generators: [timestamp_type: :utc_datetime]

@@ -326,6 +326,17 @@ async function installRuntimeProbe(page) {
       largestContentfulPaint: null,
       mounted: [],
       hydrated: [],
+      deferred: {
+        started: [],
+        loaded: [],
+        errors: [],
+      },
+      prefetch: {
+        queued: [],
+        started: [],
+        loaded: [],
+        errors: [],
+      },
     };
 
     window.__liveIslandsBenchmarkRuntime = state;
@@ -339,6 +350,19 @@ async function installRuntimeProbe(page) {
         name: event.detail?.name || el?.getAttribute?.("data-name"),
         client: el?.getAttribute?.("data-client") || null,
         prefetch: el?.getAttribute?.("data-prefetch") || null,
+      });
+    };
+
+    const rememberRuntimeEvent = (event, target) => {
+      const el = event.detail?.el;
+      target.push({
+        time: Math.round(performance.now()),
+        framework:
+          event.detail?.framework || el?.getAttribute?.("data-framework"),
+        name: event.detail?.name || el?.getAttribute?.("data-name"),
+        duration: event.detail?.duration ?? null,
+        bytes: event.detail?.bytes ?? null,
+        message: event.detail?.message ?? null,
       });
     };
 
@@ -377,6 +401,27 @@ async function installRuntimeProbe(page) {
     window.addEventListener("live-islands:hydrated", (event) =>
       rememberIsland(event, state.hydrated),
     );
+    window.addEventListener("live-islands:deferred:start", (event) =>
+      rememberRuntimeEvent(event, state.deferred.started),
+    );
+    window.addEventListener("live-islands:deferred:load", (event) =>
+      rememberRuntimeEvent(event, state.deferred.loaded),
+    );
+    window.addEventListener("live-islands:deferred:error", (event) =>
+      rememberRuntimeEvent(event, state.deferred.errors),
+    );
+    window.addEventListener("live-islands:prefetch:queue", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.queued),
+    );
+    window.addEventListener("live-islands:prefetch:start", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.started),
+    );
+    window.addEventListener("live-islands:prefetch:load", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.loaded),
+    );
+    window.addEventListener("live-islands:prefetch:error", (event) =>
+      rememberRuntimeEvent(event, state.prefetch.errors),
+    );
   });
 }
 
@@ -393,6 +438,10 @@ async function runtimeMetrics(page) {
     const hydrated = state.hydrated || [];
     const firstHydrated = hydrated[0]?.time ?? null;
     const lastHydrated = hydrated[hydrated.length - 1]?.time ?? null;
+    const deferredLoaded = state.deferred?.loaded || [];
+    const firstDeferredStarted = state.deferred?.started?.[0]?.time ?? null;
+    const lastDeferredLoaded =
+      deferredLoaded[deferredLoaded.length - 1]?.time ?? null;
 
     return {
       firstPaint: paints["first-paint"] ?? null,
@@ -409,6 +458,27 @@ async function runtimeMetrics(page) {
             ? lastHydrated - firstHydrated
             : null,
         hydrated,
+      },
+      deferred: {
+        startedCount: state.deferred?.started?.length || 0,
+        loadedCount: deferredLoaded.length,
+        errorCount: state.deferred?.errors?.length || 0,
+        firstStarted: firstDeferredStarted,
+        lastLoaded: lastDeferredLoaded,
+        loadSpan:
+          firstDeferredStarted != null && lastDeferredLoaded != null
+            ? lastDeferredLoaded - firstDeferredStarted
+            : null,
+        loaded: deferredLoaded,
+        errors: state.deferred?.errors || [],
+      },
+      prefetch: {
+        queuedCount: state.prefetch?.queued?.length || 0,
+        startedCount: state.prefetch?.started?.length || 0,
+        loadedCount: state.prefetch?.loaded?.length || 0,
+        errorCount: state.prefetch?.errors?.length || 0,
+        loaded: state.prefetch?.loaded || [],
+        errors: state.prefetch?.errors || [],
       },
     };
   });
@@ -434,6 +504,9 @@ async function collectPage(browser, pathname, options = {}) {
     Boolean,
   );
   const initialCount = responsePromises.length;
+  const deferredResponses = initialResponses.filter((response) =>
+    new URL(response.url).pathname.includes("/live-islands/deferred"),
+  );
 
   let interaction = null;
   if (options.heavyInteraction) {
@@ -515,15 +588,30 @@ async function collectPage(browser, pathname, options = {}) {
       prefetch: island.prefetch,
       ssr: island.ssr,
       serverOnly: island.serverOnly,
+      deferred: island.deferred,
     })),
     ssr: {
       containsServerReport: html.includes("Server-only executive summary"),
       containsSsrProof: html.includes("Benchmark SSR proof"),
+      containsDeferredFallback: html.includes(
+        "Loading deferred benchmark report",
+      ),
+      containsDeferredReport: html.includes("Deferred server island report"),
       containsWorkbenchButton: html.includes("Render PDF + KaTeX"),
       serverReportHasHook: /id="benchmark_server_report"[^>]*phx-hook/.test(
         html,
       ),
+      deferredReportHasHook: /id="benchmark_deferred_report"[^>]*phx-hook/.test(
+        html,
+      ),
       htmlBytes: Buffer.byteLength(html),
+    },
+    deferred: {
+      network: summarizeResponses(deferredResponses),
+      loadedCount: runtimeSummary.deferred?.loadedCount || 0,
+      errorCount: runtimeSummary.deferred?.errorCount || 0,
+      lastLoaded: runtimeSummary.deferred?.lastLoaded ?? null,
+      loadSpan: runtimeSummary.deferred?.loadSpan ?? null,
     },
     interaction,
   };
@@ -583,6 +671,7 @@ async function collectRouteFlow(browser) {
   );
   await page.locator("#benchmark_workbench").waitFor({ state: "attached" });
   await page.locator("#benchmark_vue_probe").waitFor({ state: "attached" });
+  await page.getByTestId("benchmark-deferred-report").waitFor();
   await page
     .locator("#benchmark_vue_probe")
     .scrollIntoViewIfNeeded({ timeout: 10_000 });
@@ -626,6 +715,7 @@ async function islandManifest(page) {
     prefetch: island.prefetch,
     ssr: island.ssr,
     serverOnly: island.serverOnly,
+    deferred: island.deferred,
   }));
 }
 
@@ -684,6 +774,15 @@ function summarizePageSamples(samples) {
       ),
       hydrationSpan: numericStats(
         samples.map((sample) => sample.runtime?.islands?.hydrationSpan),
+      ),
+      deferredLastLoaded: numericStats(
+        samples.map((sample) => sample.runtime?.deferred?.lastLoaded),
+      ),
+      deferredLoadSpan: numericStats(
+        samples.map((sample) => sample.runtime?.deferred?.loadSpan),
+      ),
+      prefetchLoadedCount: numericStats(
+        samples.map((sample) => sample.runtime?.prefetch?.loadedCount),
       ),
     },
     interaction:
@@ -811,6 +910,14 @@ function assertBenchmarks(result) {
   if (!benchmarkPage.ssr.containsSsrProof) {
     failures.push("SSR summary was missing from initial HTML");
   }
+  if (!benchmarkPage.ssr.containsDeferredFallback) {
+    failures.push(
+      "deferred server island fallback was missing from initial HTML",
+    );
+  }
+  if (benchmarkPage.ssr.containsDeferredReport) {
+    failures.push("deferred server island final HTML leaked into initial HTML");
+  }
   if (benchmarkPage.ssr.containsWorkbenchButton) {
     failures.push(
       "non-SSR heavy workbench leaked interactive HTML into initial HTML",
@@ -818,6 +925,29 @@ function assertBenchmarks(result) {
   }
   if (benchmarkPage.ssr.serverReportHasHook) {
     failures.push("server-only report unexpectedly has a LiveView hook");
+  }
+  if (benchmarkPage.ssr.deferredReportHasHook) {
+    failures.push("deferred server island unexpectedly has a LiveView hook");
+  }
+  if (benchmarkPage.deferred.loadedCount !== 1) {
+    failures.push(
+      `deferred server island loaded ${benchmarkPage.deferred.loadedCount} times instead of once`,
+    );
+  }
+  if (benchmarkPage.deferred.network.count !== 1) {
+    failures.push(
+      `deferred server island fetched ${benchmarkPage.deferred.network.count} responses instead of one`,
+    );
+  }
+  if (benchmarkPage.deferred.errorCount > 0) {
+    failures.push("deferred server island emitted runtime errors");
+  }
+  if (benchmarkPage.deferred.network.failedResponses.length > 0) {
+    failures.push(
+      `deferred server island loaded failed responses: ${benchmarkPage.deferred.network.failedResponses
+        .map((response) => `${response.status} ${response.url}`)
+        .join("; ")}`,
+    );
   }
   if (
     benchmarkPage.manifest.some(
@@ -954,6 +1084,17 @@ function compare(previous, current) {
       "ms",
     ),
     metric(
+      "benchmark deferred last loaded",
+      previous.pages.benchmarks.runtime?.deferred?.lastLoaded,
+      current.pages.benchmarks.runtime?.deferred?.lastLoaded,
+      "ms",
+    ),
+    metric(
+      "benchmark deferred HTML",
+      previous.pages.benchmarks.deferred?.network?.totalBytes,
+      current.pages.benchmarks.deferred?.network?.totalBytes,
+    ),
+    metric(
       "heavy interaction JS",
       previous.pages.benchmarks.interaction.network.jsBytes,
       current.pages.benchmarks.interaction.network.jsBytes,
@@ -1075,6 +1216,16 @@ function budgetFailures(result, budget) {
       result.pages.benchmarks.interaction.measure?.duration,
       budget.benchmarks?.maxHeavyInteractionDurationMs,
     ],
+    [
+      "benchmark deferred last loaded",
+      result.pages.benchmarks.deferred?.lastLoaded,
+      budget.benchmarks?.maxDeferredLastLoadedMs,
+    ],
+    [
+      "benchmark deferred HTML bytes",
+      result.pages.benchmarks.deferred?.network?.totalBytes,
+      budget.benchmarks?.maxDeferredHtmlBytes,
+    ],
   ];
 
   if (result.flows?.capabilitiesToBenchmarks) {
@@ -1164,6 +1315,10 @@ function markdown(result) {
       "Benchmark heavy interaction JS",
       result.pages.benchmarks.interaction.network.jsBytes,
     ],
+    [
+      "Benchmark deferred HTML",
+      result.pages.benchmarks.deferred.network.totalBytes,
+    ],
     ["Vite artifact gzip total", result.artifacts.totals.gzipBytes],
   ];
 
@@ -1187,8 +1342,11 @@ function markdown(result) {
     "",
     `- Server-only report in initial HTML: ${result.pages.benchmarks.ssr.containsServerReport}`,
     `- SSR summary in initial HTML: ${result.pages.benchmarks.ssr.containsSsrProof}`,
+    `- Deferred fallback in initial HTML: ${result.pages.benchmarks.ssr.containsDeferredFallback}`,
+    `- Deferred final HTML absent from initial HTML: ${!result.pages.benchmarks.ssr.containsDeferredReport}`,
     `- Heavy non-SSR workbench absent from initial HTML: ${!result.pages.benchmarks.ssr.containsWorkbenchButton}`,
     `- Server-only report has no hook: ${!result.pages.benchmarks.ssr.serverReportHasHook}`,
+    `- Deferred report has no hook: ${!result.pages.benchmarks.ssr.deferredReportHasHook}`,
     `- Browser errors: ${result.pages.benchmarks.browserErrors.length}`,
     "",
     "## Sample Stability",
@@ -1199,8 +1357,8 @@ function markdown(result) {
     "",
     "## Runtime Metrics",
     "",
-    "| Page | FCP | LCP | Hydrated Islands | Last Hydrated | Hydration Span |",
-    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    "| Page | FCP | LCP | Hydrated Islands | Last Hydrated | Deferred Loaded | Last Deferred | Prefetch Loaded |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ...runtimeRows(result),
     "",
     "## Largest Benchmark Initial Requests",
@@ -1267,8 +1425,10 @@ function runtimeRows(result) {
   ].map(([name, page]) => {
     const runtime = page.runtime || {};
     const islands = runtime.islands || {};
+    const deferred = runtime.deferred || {};
+    const prefetch = runtime.prefetch || {};
 
-    return `| ${name} | ${formatOptional(runtime.firstContentfulPaint, "ms")} | ${formatOptional(runtime.largestContentfulPaint, "ms")} | ${islands.hydratedCount ?? 0} | ${formatOptional(islands.lastHydrated, "ms")} | ${formatOptional(islands.hydrationSpan, "ms")} |`;
+    return `| ${name} | ${formatOptional(runtime.firstContentfulPaint, "ms")} | ${formatOptional(runtime.largestContentfulPaint, "ms")} | ${islands.hydratedCount ?? 0} | ${formatOptional(islands.lastHydrated, "ms")} | ${deferred.loadedCount ?? 0} | ${formatOptional(deferred.lastLoaded, "ms")} | ${prefetch.loadedCount ?? 0} |`;
   });
 }
 
@@ -1297,6 +1457,16 @@ function sampleStatsRows(result) {
     [
       "Benchmark last hydrated",
       result.pages.benchmarks.stats.runtime.lastHydrated,
+      "ms",
+    ],
+    [
+      "Benchmark deferred loaded",
+      result.pages.benchmarks.stats.runtime.deferredLastLoaded,
+      "ms",
+    ],
+    [
+      "Benchmark deferred span",
+      result.pages.benchmarks.stats.runtime.deferredLoadSpan,
       "ms",
     ],
     [
@@ -1331,11 +1501,11 @@ function routeFlowMarkdown(result) {
     `- Network JS: ${formatBytes(flow.network.jsBytes)}`,
     `- Heavy libraries loaded before intent: ${flow.loadedHeavyLibraries.length}`,
     "",
-    "| After Navigation Manifest | Framework | Client | Prefetch | Server Only |",
-    "| --- | --- | --- | --- | --- |",
+    "| After Navigation Manifest | Framework | Client | Prefetch | Server Only | Deferred |",
+    "| --- | --- | --- | --- | --- | --- |",
     ...flow.afterManifest.map(
       (island) =>
-        `| ${island.name} | ${island.framework} | ${island.client} | ${island.prefetch} | ${island.serverOnly} |`,
+        `| ${island.name} | ${island.framework} | ${island.client} | ${island.prefetch} | ${island.serverOnly} | ${island.deferred} |`,
     ),
   ];
 }
@@ -1396,7 +1566,7 @@ async function main() {
 
     try {
       const result = {
-        version: 3,
+        version: 4,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
@@ -1450,6 +1620,12 @@ async function main() {
           metric: "heavy interaction JS",
           value: formatBytes(
             result.pages.benchmarks.interaction.network.jsBytes,
+          ),
+        },
+        {
+          metric: "deferred HTML",
+          value: formatBytes(
+            result.pages.benchmarks.deferred.network.totalBytes,
           ),
         },
         {
