@@ -33,12 +33,13 @@ benchmark routes in Chromium, and records:
 Run the full suite:
 
 ```bash
-npm run benchmarks
+make benchmark
 ```
 
 Useful options:
 
 ```bash
+make benchmark-smoke
 node benchmarks/run.mjs --skip-build
 node benchmarks/run.mjs --samples=1
 node benchmarks/run.mjs --skip-flow

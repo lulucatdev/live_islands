@@ -12,6 +12,7 @@ defmodule LiveIslands.SSR.ViteJS do
     plugins: [react(), liveIslandsPlugin()],
     // ...
   }
+  ```
   """
 
   @behaviour LiveIslands.SSR

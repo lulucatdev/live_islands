@@ -47,7 +47,7 @@ defmodule LiveIslands.MixProject do
       {:ecto, "~> 3.0", optional: true},
       {:phoenix_ecto, "~> 4.0", optional: true},
       {:credo, "~> 1.7", only: [:dev, :test]},
-      {:ex_doc, "~> 0.19", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.38", only: :dev, runtime: false},
       {:git_ops, "~> 2.8.0", only: [:dev]}
     ]
   end
@@ -60,8 +60,8 @@ defmodule LiveIslands.MixProject do
         Github: @source_url
       },
       files:
-        ~w(assets/copy assets/js guides lib skills)s ++
-          ~w(CHANGELOG.md LICENSE.md NOTICE.md mix.exs package.json README.md .formatter.exs)s
+        ~w(assets/copy assets/js benchmarks/README.md guides lib skills)s ++
+          ~w(CHANGELOG.md LICENSE.md Makefile NOTICE.md logo.svg mix.exs package.json README.md .formatter.exs)s
     ]
   end
 
@@ -71,17 +71,67 @@ defmodule LiveIslands.MixProject do
       source_ref: "v#{@version}",
       source_url: @source_url,
       homepage_url: @source_url,
+      canonical: "https://hexdocs.pm/live_islands",
+      logo: "logo.svg",
+      favicon: "logo.svg",
       main: "readme",
+      extra_section: "Guides",
       extras: [
-        "README.md",
-        "guides/installation.md",
-        "guides/lazy-islands.md",
-        "guides/performance-roadmap.md",
-        "guides/deployment.md",
-        "guides/development.md",
-        "guides/ssr.md",
-        "CHANGELOG.md"
-      ]
+        "README.md": [filename: "readme", title: "Overview"],
+        "guides/installation.md": [filename: "installation", title: "Installation"],
+        "guides/lazy-islands.md": [filename: "lazy-islands", title: "Lazy Islands"],
+        "guides/ssr.md": [filename: "ssr", title: "Server-Side Rendering"],
+        "guides/deployment.md": [filename: "deployment", title: "Deployment"],
+        "guides/development.md": [filename: "development", title: "Development"],
+        "benchmarks/README.md": [filename: "benchmarks", title: "Benchmarks"],
+        "guides/documentation.md": [filename: "documentation", title: "Documentation"],
+        "skills/live-islands-install/SKILL.md": [
+          filename: "agent-install-skill",
+          title: "Agent Install Skill"
+        ],
+        "skills/live-islands-install/references/integration-checklist.md": [
+          filename: "install-integration-checklist",
+          title: "Install Integration Checklist"
+        ],
+        "skills/live-islands-install/references/verification.md": [
+          filename: "install-verification",
+          title: "Install Verification"
+        ],
+        "guides/performance-roadmap.md": [
+          filename: "performance-roadmap",
+          title: "Performance Roadmap"
+        ],
+        "CHANGELOG.md": [filename: "changelog", title: "Changelog"],
+        "NOTICE.md": [filename: "notice", title: "Notice"],
+        "LICENSE.md": [filename: "license", title: "License"]
+      ],
+      groups_for_extras: [
+        Start: ["README.md", "guides/installation.md"],
+        Runtime: ["guides/lazy-islands.md", "guides/ssr.md", "guides/deployment.md"],
+        Operations: ["guides/development.md", "benchmarks/README.md", "guides/documentation.md"],
+        "Agent Installation": [
+          "skills/live-islands-install/SKILL.md",
+          "skills/live-islands-install/references/integration-checklist.md",
+          "skills/live-islands-install/references/verification.md"
+        ],
+        Reference: ["guides/performance-roadmap.md", "CHANGELOG.md", "NOTICE.md", "LICENSE.md"]
+      ],
+      groups_for_modules: [
+        Components: [LiveIslands, LiveIslands.React, LiveIslands.Vue],
+        Runtime: [LiveIslands.Reload, LiveIslands.Deferred],
+        "Server-Side Rendering": [
+          LiveIslands.SSR,
+          LiveIslands.SSR.NodeJS,
+          LiveIslands.SSR.ViteJS
+        ],
+        Encoding: [LiveIslands.Encoder, LiveIslands.Patch],
+        Testing: [LiveIslands.Test],
+        "Mix Tasks": [
+          Mix.Tasks.LiveIslands.Install,
+          Mix.Tasks.LiveIslands.VerifyInstall
+        ]
+      ],
+      nest_modules_by_prefix: [LiveIslands]
     ]
   end
 end

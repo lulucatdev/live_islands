@@ -5,6 +5,15 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## Unreleased
+
+Developer workflow and HexDocs structure.
+
+- Added a root `Makefile` for setup, demo, compile, test, e2e, benchmark, docs, and Hex package build workflows.
+- Expanded ExDoc configuration with grouped guides, grouped API modules, logo/favicon assets, canonical HexDocs URL, benchmark docs, and install-skill references.
+- Added a documentation maintenance guide and tightened development/benchmark docs around the new `make` entrypoints.
+- Fixed the Vite SSR adapter moduledoc fence so `mix docs --warnings-as-errors` passes cleanly.
+
 ## v0.11.2
 
 Todo benchmark flow comparison hardening.

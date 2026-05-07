@@ -157,10 +157,26 @@ mix live_islands.verify_install --full --install
 Run the production benchmark suite from the repo root:
 
 ```bash
-npm run benchmarks
+make benchmark
 ```
 
 It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures the React-only/Vue-only/mixed asset profile pages, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, drives the versioned `/todo` product workflow through native LiveView controls and React/Vue islands, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+
+## Development Commands
+
+Use the root `Makefile` for the common development workflow:
+
+```bash
+make setup
+make demo
+make check
+make docs-check
+make hex-build
+```
+
+`make demo` starts the example app at `http://127.0.0.1:4012` with Vite at
+`http://localhost:5174` by default. Override `PORT` or `VITE_PORT` when those
+ports are busy.
 
 ## Credits
 
