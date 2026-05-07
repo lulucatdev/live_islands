@@ -12,6 +12,7 @@ defmodule LiveIslands do
   alias LiveIslands.Encoder
   alias LiveIslands.Deferred
   alias LiveIslands.Patch
+  alias LiveIslands.Reload
   alias LiveIslands.Slots
   alias LiveIslands.SSR
   alias Phoenix.LiveView
@@ -46,6 +47,43 @@ defmodule LiveIslands do
     quote do
       import LiveIslands
     end
+  end
+
+  @doc """
+  Expands a route-level asset profile into Vite source assets.
+
+  Server-only profiles such as `:server_only`, `:css_only`, and `:zero_js`
+  return the stylesheet entry without the JavaScript app entry. Interactive
+  profiles such as `:islands`, `:liveview`, and `:mixed` return both entries.
+
+  Pass a list to keep explicit asset control.
+  """
+  def asset_profile(profile \\ :default, opts \\ []) do
+    Reload.asset_profile(profile, opts)
+  end
+
+  @doc """
+  Assigns a LiveIslands asset profile to a Plug connection or LiveView socket.
+
+  The root layout can read `:live_islands_assets` and pass it to
+  `LiveIslands.Reload.vite_assets/1`.
+  """
+  def put_asset_profile(target, profile \\ :default, opts \\ [])
+
+  def put_asset_profile(%Plug.Conn{} = conn, profile, opts) do
+    assets = asset_profile(profile, opts)
+
+    conn
+    |> Plug.Conn.assign(:live_islands_asset_profile, profile)
+    |> Plug.Conn.assign(:live_islands_assets, assets)
+  end
+
+  def put_asset_profile(%Phoenix.LiveView.Socket{} = socket, profile, opts) do
+    assets = asset_profile(profile, opts)
+
+    socket
+    |> Phoenix.Component.assign(:live_islands_asset_profile, profile)
+    |> Phoenix.Component.assign(:live_islands_assets, assets)
   end
 
   @doc """

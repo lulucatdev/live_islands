@@ -1,8 +1,6 @@
 defmodule LiveIslandsExamplesWeb.PageController do
   use LiveIslandsExamplesWeb, :controller
 
-  @css_only_assets ["/css/app.css"]
-
   def home(conn, _params) do
     redirect(conn, to: ~p"/simple")
   end
@@ -25,13 +23,34 @@ defmodule LiveIslandsExamplesWeb.PageController do
 
   def server_only(conn, _params) do
     conn
-    |> assign(:live_islands_assets, @css_only_assets)
+    |> LiveIslands.put_asset_profile(:server_only)
     |> put_layout(false)
     |> render(:server_only,
       metrics: metrics(),
       samples: samples(),
       sections: sections()
     )
+  end
+
+  def profile_react_only(conn, _params) do
+    conn
+    |> LiveIslands.put_asset_profile(:islands)
+    |> put_layout(false)
+    |> render(:profile_react_only)
+  end
+
+  def profile_vue_only(conn, _params) do
+    conn
+    |> LiveIslands.put_asset_profile(:islands)
+    |> put_layout(false)
+    |> render(:profile_vue_only, samples: samples())
+  end
+
+  def profile_mixed(conn, _params) do
+    conn
+    |> LiveIslands.put_asset_profile(:islands)
+    |> put_layout(false)
+    |> render(:profile_mixed, samples: samples())
   end
 
   defp metrics do

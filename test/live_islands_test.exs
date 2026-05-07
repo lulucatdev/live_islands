@@ -10,6 +10,34 @@ defmodule LiveIslandsTest do
 
   doctest LiveIslands
 
+  describe "asset profiles" do
+    test "expands named profiles into Vite source entries" do
+      assert LiveIslands.asset_profile(:server_only) == ["/css/app.css"]
+      assert LiveIslands.asset_profile(:zero_js) == ["/css/app.css"]
+      assert LiveIslands.asset_profile(:islands) == ["/js/app.js", "/css/app.css"]
+      assert LiveIslands.asset_profile(:mixed) == ["/js/app.js", "/css/app.css"]
+    end
+
+    test "accepts explicit and customized asset profiles" do
+      assert LiveIslands.asset_profile(["/js/custom.js", "/css/custom.css"]) == [
+               "/js/custom.js",
+               "/css/custom.css"
+             ]
+
+      assert LiveIslands.asset_profile(:islands,
+               js: "/js/admin.js",
+               css: "/css/admin.css"
+             ) == ["/js/admin.js", "/css/admin.css"]
+    end
+
+    test "assigns asset profile evidence to a Plug connection" do
+      conn = LiveIslands.put_asset_profile(Plug.Test.conn(:get, "/report"), :server_only)
+
+      assert conn.assigns.live_islands_asset_profile == :server_only
+      assert conn.assigns.live_islands_assets == ["/css/app.css"]
+    end
+  end
+
   describe "React and Vue islands" do
     def mixed_component(assigns) do
       ~H"""

@@ -119,10 +119,14 @@ entry files so dynamic island chunks share the same module graph.
 ```
 
 For server-only routes that should not boot LiveView or island client runtime,
-let the root layout read a route assign and pass only CSS:
+let the root layout read a route asset profile:
 
 ```heex
-<% live_islands_assets = assigns[:live_islands_assets] || ["/js/app.js", "/css/app.css"] %>
+<%
+  live_islands_profile = assigns[:live_islands_asset_profile] || :islands
+  live_islands_assets =
+    assigns[:live_islands_assets] || LiveIslands.asset_profile(live_islands_profile)
+%>
 
 <LiveIslands.Reload.vite_assets assets={live_islands_assets}>
   <link
@@ -141,10 +145,20 @@ let the root layout read a route assign and pass only CSS:
 </LiveIslands.Reload.vite_assets>
 ```
 
-Then a controller action can use
-`assign(conn, :live_islands_assets, ["/css/app.css"])` before rendering. In dev,
+Then a controller action can request a server-only shell before rendering:
+
+```elixir
+def report(conn, _params) do
+  conn
+  |> LiveIslands.put_asset_profile(:server_only)
+  |> render(:report)
+end
+```
+
+Use `LiveIslands.asset_profile(:islands)` for the normal app entry plus CSS, or
+pass an explicit asset list when a route needs custom entries. In dev,
 `vite_assets` also skips the Vite client and React refresh preamble when the
-requested asset list has no JavaScript entry.
+requested profile has no JavaScript entry.
 
 Add component roots and an SSR entrypoint:
 

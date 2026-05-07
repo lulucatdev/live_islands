@@ -1,0 +1,18 @@
+<main
+  data-live-islands-page="/profile/react-only"
+  data-testid="profile-react-only-page"
+  class="mx-auto max-w-5xl space-y-8 px-8 py-10"
+>
+  <section class="space-y-2">
+    <p class="text-sm font-semibold uppercase tracking-wide text-brand">Asset Profile</p>
+    <h1 class="text-3xl font-bold">React-only profile</h1>
+    <p class="max-w-3xl text-zinc-600">
+      This route boots the normal islands shell but only renders a React island,
+      so the page manifest should stay scoped to React.
+    </p>
+  </section>
+
+  <section class="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
+    <.react id="profile_react_simple" name="Simple" ssr={false} client={:load} prefetch={:none} />
+  </section>
+</main>

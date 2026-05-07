@@ -56,3 +56,31 @@ Borrowed from Astro layouts and Fresh islands.
   framework chunks
 - Benchmarks: schema `version: 7` records shell evidence and enforces zero
   JavaScript bytes/script responses for `/server-only`
+
+## v0.10 Island-Aware Asset Profiles
+
+Borrowed from Astro page layouts and Remix route contracts.
+
+- API: `LiveIslands.asset_profile/2` and `LiveIslands.put_asset_profile/3`
+  expose named profiles such as `:server_only`, `:css_only`, `:zero_js`,
+  `:islands`, `:liveview`, and explicit asset lists
+- Runtime: root layouts consume `:live_islands_assets`, while
+  `LiveIslands.Reload.vite_assets` expands profiles before deciding whether to
+  emit CSS, JavaScript, the Vite dev client, or React refresh
+- Tests: unit coverage for profile expansion and browser e2e coverage for
+  React-only, Vue-only, and mixed profile routes
+- Benchmarks: schema `version: 8` records profile page total bytes, JavaScript
+  bytes, module scripts, LiveSocket presence, frameworks in the page manifest,
+  hydration counts, budgets, and release-to-release comparison metrics
+
+## v0.11 Complex Demo App
+
+Planned next stage.
+
+- Build a realistic demo app rather than another isolated capability page
+- Exercise React and Vue islands on separate and mixed screens
+- Include server-only SSR, deferred server islands, visible/intent hydration,
+  page-scoped prefetch, route navigation, forms/events, and heavy optional
+  assets
+- Add an e2e and benchmark track that treats the demo as a product workflow
+  with initial-load, route-change, interaction, and SSR correctness budgets

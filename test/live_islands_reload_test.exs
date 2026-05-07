@@ -22,6 +22,14 @@ defmodule LiveIslandsReloadTest do
     """
   end
 
+  def server_profile_component(assigns) do
+    ~H"""
+    <LiveIslands.Reload.vite_assets assets={:server_only}>
+      <link phx-track-static rel="stylesheet" href="/assets/app.css" />
+    </LiveIslands.Reload.vite_assets>
+    """
+  end
+
   setup do
     previous =
       Map.new([:vite_host, :vite_manifest_path, :otp_app], fn key ->
@@ -94,6 +102,17 @@ defmodule LiveIslandsReloadTest do
 
     assert html =~ ~s(href="/assets/app.css")
     assert html =~ ~s(src="/assets/app.js")
+  end
+
+  test "expands server-only asset profiles before rendering tags" do
+    Application.put_env(:live_islands, :vite_host, "http://localhost:5173")
+
+    html = render_component(&server_profile_component/1)
+
+    assert html =~ ~s(href="http://localhost:5173/css/app.css")
+    refute html =~ "@vite/client"
+    refute html =~ "@react-refresh"
+    refute html =~ ~s(src="http://localhost:5173/js/app.js")
   end
 
   test "renders Vite dev client only when JavaScript assets are present" do

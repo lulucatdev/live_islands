@@ -1091,6 +1091,29 @@ function assertBenchmarks(result) {
   const failures = [];
   const serverOnlyPage = result.pages.serverOnly;
   const benchmarkPage = result.pages.benchmarks;
+  const profilePages = [
+    {
+      name: "react-only profile",
+      page: result.pages.reactOnly,
+      expectedFrameworks: ["react"],
+      forbiddenFrameworks: ["vue"],
+      minHydratedIslands: 1,
+    },
+    {
+      name: "vue-only profile",
+      page: result.pages.vueOnly,
+      expectedFrameworks: ["vue"],
+      forbiddenFrameworks: ["react"],
+      minHydratedIslands: 1,
+    },
+    {
+      name: "mixed profile",
+      page: result.pages.mixedProfile,
+      expectedFrameworks: ["react", "vue"],
+      forbiddenFrameworks: [],
+      minHydratedIslands: 2,
+    },
+  ];
   const routeFlow = result.flows?.capabilitiesToBenchmarks;
   const intentPrefetch = result.flows?.intentPrefetch;
 
@@ -1161,6 +1184,51 @@ function assertBenchmarks(result) {
         .map((error) => error.text)
         .join("; ")}`,
     );
+  }
+  for (const profile of profilePages) {
+    const frameworks = new Set(
+      profile.page.manifest.map((island) => island.framework),
+    );
+
+    for (const framework of profile.expectedFrameworks) {
+      if (!frameworks.has(framework)) {
+        failures.push(`${profile.name} manifest is missing ${framework}`);
+      }
+    }
+    for (const framework of profile.forbiddenFrameworks) {
+      if (frameworks.has(framework)) {
+        failures.push(
+          `${profile.name} manifest unexpectedly includes ${framework}`,
+        );
+      }
+    }
+    if (!profile.page.shell?.liveSocketPresent) {
+      failures.push(`${profile.name} did not boot LiveSocket`);
+    }
+    if (profile.page.network?.jsBytes <= 0) {
+      failures.push(`${profile.name} did not load the app JavaScript profile`);
+    }
+    if (
+      profile.page.runtime?.islands?.hydratedCount < profile.minHydratedIslands
+    ) {
+      failures.push(
+        `${profile.name} hydrated ${profile.page.runtime?.islands?.hydratedCount || 0} islands`,
+      );
+    }
+    if (profile.page.network.failedResponses.length > 0) {
+      failures.push(
+        `${profile.name} loaded failed responses: ${profile.page.network.failedResponses
+          .map((response) => `${response.status} ${response.url}`)
+          .join("; ")}`,
+      );
+    }
+    if (profile.page.browserErrors.length > 0) {
+      failures.push(
+        `${profile.name} emitted browser errors: ${profile.page.browserErrors
+          .map((error) => error.text)
+          .join("; ")}`,
+      );
+    }
   }
 
   if (!benchmarkPage.ssr.containsServerReport) {
@@ -1364,6 +1432,36 @@ function compare(previous, current) {
       "count",
     ),
     metric(
+      "react-only profile total",
+      previous.pages.reactOnly?.network?.totalBytes,
+      current.pages.reactOnly.network.totalBytes,
+    ),
+    metric(
+      "react-only profile JS",
+      previous.pages.reactOnly?.network?.jsBytes,
+      current.pages.reactOnly.network.jsBytes,
+    ),
+    metric(
+      "vue-only profile total",
+      previous.pages.vueOnly?.network?.totalBytes,
+      current.pages.vueOnly.network.totalBytes,
+    ),
+    metric(
+      "vue-only profile JS",
+      previous.pages.vueOnly?.network?.jsBytes,
+      current.pages.vueOnly.network.jsBytes,
+    ),
+    metric(
+      "mixed profile total",
+      previous.pages.mixedProfile?.network?.totalBytes,
+      current.pages.mixedProfile.network.totalBytes,
+    ),
+    metric(
+      "mixed profile JS",
+      previous.pages.mixedProfile?.network?.jsBytes,
+      current.pages.mixedProfile.network.jsBytes,
+    ),
+    metric(
       "benchmark initial total",
       previous.pages.benchmarks.network.totalBytes,
       current.pages.benchmarks.network.totalBytes,
@@ -1514,6 +1612,36 @@ function budgetFailures(result, budget) {
       "server-only script responses",
       result.pages.serverOnly.zeroJsProof?.scriptResponses.length,
       budget.serverOnly?.maxScriptResponses,
+    ],
+    [
+      "react-only profile total bytes",
+      result.pages.reactOnly?.network?.totalBytes,
+      budget.profiles?.reactOnly?.maxTotalBytes,
+    ],
+    [
+      "react-only profile JS bytes",
+      result.pages.reactOnly?.network?.jsBytes,
+      budget.profiles?.reactOnly?.maxJsBytes,
+    ],
+    [
+      "vue-only profile total bytes",
+      result.pages.vueOnly?.network?.totalBytes,
+      budget.profiles?.vueOnly?.maxTotalBytes,
+    ],
+    [
+      "vue-only profile JS bytes",
+      result.pages.vueOnly?.network?.jsBytes,
+      budget.profiles?.vueOnly?.maxJsBytes,
+    ],
+    [
+      "mixed profile total bytes",
+      result.pages.mixedProfile?.network?.totalBytes,
+      budget.profiles?.mixed?.maxTotalBytes,
+    ],
+    [
+      "mixed profile JS bytes",
+      result.pages.mixedProfile?.network?.jsBytes,
+      budget.profiles?.mixed?.maxJsBytes,
     ],
     [
       "benchmark initial unique bytes",
@@ -1673,6 +1801,12 @@ function markdown(result) {
     ["Home unique URL total", result.pages.home.network.uniqueBytes],
     ["Server-only total", result.pages.serverOnly.network.totalBytes],
     ["Server-only JS", result.pages.serverOnly.network.jsBytes],
+    ["React-only profile total", result.pages.reactOnly.network.totalBytes],
+    ["React-only profile JS", result.pages.reactOnly.network.jsBytes],
+    ["Vue-only profile total", result.pages.vueOnly.network.totalBytes],
+    ["Vue-only profile JS", result.pages.vueOnly.network.jsBytes],
+    ["Mixed profile total", result.pages.mixedProfile.network.totalBytes],
+    ["Mixed profile JS", result.pages.mixedProfile.network.jsBytes],
     ["Benchmark initial total", result.pages.benchmarks.network.totalBytes],
     [
       "Benchmark initial unique URL total",
@@ -1741,6 +1875,12 @@ function markdown(result) {
     `- Prefetch runtime booted: ${result.pages.serverOnly.shell.prefetchRuntimePresent}`,
     `- Deferred runtime booted: ${result.pages.serverOnly.shell.deferredRuntimePresent}`,
     `- Forbidden client chunks: ${result.pages.serverOnly.zeroJsProof.forbiddenClientChunks.length}`,
+    "",
+    "## Asset Profile Matrix",
+    "",
+    "| Profile | Total | JS | Module Scripts | LiveSocket | Frameworks | Hydrated Islands |",
+    "| --- | ---: | ---: | ---: | --- | --- | ---: |",
+    ...profileMatrixRows(result),
     "",
     "## Sample Stability",
     "",
@@ -1812,10 +1952,31 @@ function elixirLine(value) {
   );
 }
 
+function profileMatrixRows(result) {
+  return [
+    ["Server Only", result.pages.serverOnly],
+    ["React Only", result.pages.reactOnly],
+    ["Vue Only", result.pages.vueOnly],
+    ["Mixed", result.pages.mixedProfile],
+  ].map(([name, page]) => {
+    const frameworks =
+      [...new Set(page.manifest.map((island) => island.framework))]
+        .filter(Boolean)
+        .join(", ") || "none";
+
+    return `| ${name} | ${formatBytes(page.network.totalBytes)} | ${formatBytes(
+      page.network.jsBytes,
+    )} | ${page.shell.moduleScriptCount} | ${page.shell.liveSocketPresent} | ${frameworks} | ${page.runtime.islands.hydratedCount} |`;
+  });
+}
+
 function runtimeRows(result) {
   return [
     ["Home", result.pages.home],
     ["Server Only", result.pages.serverOnly],
+    ["React Only", result.pages.reactOnly],
+    ["Vue Only", result.pages.vueOnly],
+    ["Mixed", result.pages.mixedProfile],
     ["Benchmarks", result.pages.benchmarks],
   ].map(([name, page]) => {
     const runtime = page.runtime || {};
@@ -1861,6 +2022,51 @@ function sampleStatsRows(result) {
     [
       "Server-only hydrated islands",
       result.pages.serverOnly.stats.runtime.hydratedCount,
+      "count",
+    ],
+    [
+      "React-only profile total bytes",
+      result.pages.reactOnly.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "React-only profile JS bytes",
+      result.pages.reactOnly.stats.network.jsBytes,
+      "bytes",
+    ],
+    [
+      "React-only profile hydrated islands",
+      result.pages.reactOnly.stats.runtime.hydratedCount,
+      "count",
+    ],
+    [
+      "Vue-only profile total bytes",
+      result.pages.vueOnly.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "Vue-only profile JS bytes",
+      result.pages.vueOnly.stats.network.jsBytes,
+      "bytes",
+    ],
+    [
+      "Vue-only profile hydrated islands",
+      result.pages.vueOnly.stats.runtime.hydratedCount,
+      "count",
+    ],
+    [
+      "Mixed profile total bytes",
+      result.pages.mixedProfile.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "Mixed profile JS bytes",
+      result.pages.mixedProfile.stats.network.jsBytes,
+      "bytes",
+    ],
+    [
+      "Mixed profile hydrated islands",
+      result.pages.mixedProfile.stats.runtime.hydratedCount,
       "count",
     ],
     ["Benchmark navigation", result.pages.benchmarks.stats.navigationMs, "ms"],
@@ -2027,7 +2233,7 @@ async function main() {
 
     try {
       const result = {
-        version: 7,
+        version: 8,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
@@ -2039,6 +2245,9 @@ async function main() {
           serverOnly: await collectScenario(browser, "/server-only", {
             zeroJsProof: true,
           }),
+          reactOnly: await collectScenario(browser, "/profile/react-only"),
+          vueOnly: await collectScenario(browser, "/profile/vue-only"),
+          mixedProfile: await collectScenario(browser, "/profile/mixed"),
           benchmarks: await collectScenario(browser, "/benchmarks", {
             heavyInteraction: true,
           }),
@@ -2084,6 +2293,18 @@ async function main() {
         {
           metric: "server-only hydrated",
           value: result.pages.serverOnly.runtime.islands.hydratedCount,
+        },
+        {
+          metric: "react-only profile JS",
+          value: formatBytes(result.pages.reactOnly.network.jsBytes),
+        },
+        {
+          metric: "vue-only profile JS",
+          value: formatBytes(result.pages.vueOnly.network.jsBytes),
+        },
+        {
+          metric: "mixed profile JS",
+          value: formatBytes(result.pages.mixedProfile.network.jsBytes),
         },
         {
           metric: "server-only forbidden chunks",

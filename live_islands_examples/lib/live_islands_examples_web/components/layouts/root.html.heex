@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" class="[scrollbar-gutter:stable]">
   <head>
-    <% live_islands_assets = assigns[:live_islands_assets] || ["/js/app.js", "/css/app.css"] %>
+    <% live_islands_profile = assigns[:live_islands_asset_profile] || :islands
+
+    live_islands_assets =
+      assigns[:live_islands_assets] || LiveIslands.asset_profile(live_islands_profile) %>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />

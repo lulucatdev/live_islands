@@ -1,0 +1,28 @@
+<main
+  data-live-islands-page="/profile/mixed"
+  data-testid="profile-mixed-page"
+  class="mx-auto max-w-5xl space-y-8 px-8 py-10"
+>
+  <section class="space-y-2">
+    <p class="text-sm font-semibold uppercase tracking-wide text-brand">Asset Profile</p>
+    <h1 class="text-3xl font-bold">Mixed profile</h1>
+    <p class="max-w-3xl text-zinc-600">
+      This route renders React and Vue islands together. It is the benchmark
+      control for the page profile matrix.
+    </p>
+  </section>
+
+  <section class="rounded-md border border-zinc-200 bg-white p-5 shadow-sm">
+    <.react id="profile_mixed_react" name="Simple" ssr={false} client={:load} prefetch={:none} />
+  </section>
+
+  <.vue
+    id="profile_mixed_vue"
+    v-component="benchmark-probe"
+    samples={@samples}
+    message="Mixed profile Vue island hydrated"
+    v-ssr={false}
+    client={:load}
+    prefetch={:none}
+  />
+</main>

@@ -1,0 +1,24 @@
+<main
+  data-live-islands-page="/profile/vue-only"
+  data-testid="profile-vue-only-page"
+  class="mx-auto max-w-5xl space-y-8 px-8 py-10"
+>
+  <section class="space-y-2">
+    <p class="text-sm font-semibold uppercase tracking-wide text-brand">Asset Profile</p>
+    <h1 class="text-3xl font-bold">Vue-only profile</h1>
+    <p class="max-w-3xl text-zinc-600">
+      This route boots the normal islands shell but only renders a Vue island,
+      so the page manifest should stay scoped to Vue.
+    </p>
+  </section>
+
+  <.vue
+    id="profile_vue_probe"
+    v-component="benchmark-probe"
+    samples={@samples}
+    message="Vue-only profile hydrated"
+    v-ssr={false}
+    client={:load}
+    prefetch={:none}
+  />
+</main>

@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.10.0
+
+Island-aware asset profiles and page profile benchmarks.
+
+- Added `LiveIslands.asset_profile/2` and `LiveIslands.put_asset_profile/3` so routes can request `:server_only`, `:css_only`, `:zero_js`, `:islands`, `:liveview`, or explicit Vite assets through a stable API.
+- Replaced the example app's handwritten CSS-only shell assign with `LiveIslands.put_asset_profile(:server_only)`.
+- Added `/profile/react-only`, `/profile/vue-only`, and `/profile/mixed` example routes to prove page-scoped manifests stay specific to each route's islands.
+- Added browser e2e coverage for the profile matrix and extended benchmark schema `version: 8` with profile page byte totals, JavaScript totals, hydration counts, budgets, and release-to-release comparison metrics.
+- Documented the next stage: v0.11.0 will focus on a complex demo app that exercises the full React + Vue + SSR + deferred + lazy loading stack in one realistic product surface.
+
 ## v0.9.0
 
 Route-level shell optimization for server-only pages.

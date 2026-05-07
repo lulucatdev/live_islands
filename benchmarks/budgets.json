@@ -12,6 +12,20 @@
     "maxForbiddenClientChunks": 0,
     "maxScriptResponses": 0
   },
+  "profiles": {
+    "reactOnly": {
+      "maxTotalBytes": 500000,
+      "maxJsBytes": 350000
+    },
+    "vueOnly": {
+      "maxTotalBytes": 550000,
+      "maxJsBytes": 380000
+    },
+    "mixed": {
+      "maxTotalBytes": 650000,
+      "maxJsBytes": 460000
+    }
+  },
   "benchmarks": {
     "maxInitialTotalBytes": 700000,
     "maxInitialUniqueBytes": 700000,

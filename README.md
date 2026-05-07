@@ -20,9 +20,9 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
 - Server-only zero-JS proofs for hookless React and Vue SSR islands
-- Route-level CSS-only shells for pages that should skip the app JavaScript entry
+- Route-level asset profiles with CSS-only shells for pages that should skip the app JavaScript entry
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
-- Production benchmark suite for initial route bytes, SSR assertions, server-only zero-JS proofs, lazy chunks, KaTeX, and PDF.js
+- Production benchmark suite for initial route bytes, SSR assertions, asset profile pages, server-only zero-JS proofs, lazy chunks, KaTeX, and PDF.js
 
 ## Package Exports
 
@@ -99,6 +99,39 @@ forward "/live-islands/deferred", LiveIslands.Deferred,
   endpoint: MyAppWeb.Endpoint
 ```
 
+Route-level asset profiles let layouts stay page-aware:
+
+```elixir
+def report(conn, _params) do
+  conn
+  |> LiveIslands.put_asset_profile(:server_only)
+  |> render(:report)
+end
+```
+
+```heex
+<%
+  live_islands_assets =
+    assigns[:live_islands_assets] || LiveIslands.asset_profile(:islands)
+%>
+
+<LiveIslands.Reload.vite_assets assets={live_islands_assets}>
+  <link
+    :if={Enum.member?(live_islands_assets, "/css/app.css")}
+    phx-track-static
+    rel="stylesheet"
+    href={~p"/assets/app.css"}
+  />
+  <script
+    :if={Enum.member?(live_islands_assets, "/js/app.js")}
+    type="module"
+    phx-track-static
+    src={~p"/assets/app.js"}
+  >
+  </script>
+</LiveIslands.Reload.vite_assets>
+```
+
 ## Install
 
 ```elixir
@@ -126,7 +159,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures initial route bytes, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures the React-only/Vue-only/mixed asset profile pages, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 
