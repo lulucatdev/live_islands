@@ -115,3 +115,28 @@ jobs:
             benchmarks/results/live-islands-benchmark.json \
             benchmarks/results/live-islands-benchmark.md \
             --clobber
+
+      - name: Update release benchmark summary
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          marker="<!-- live-islands-benchmark-summary -->"
+          gh release view "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --json body \
+            --jq .body > benchmarks/results/release-body.md
+
+          awk 'index($0, "<!-- live-islands-benchmark-summary -->") { exit } { print }' \
+            benchmarks/results/release-body.md > benchmarks/results/release-notes.md
+
+          {
+            printf '\n%s\n\n' "${marker}"
+            sed 's/^# LiveIslands Benchmark Result/## Benchmark Result/' benchmarks/results/latest.md
+          } >> benchmarks/results/release-notes.md
+
+          gh release edit "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file benchmarks/results/release-notes.md

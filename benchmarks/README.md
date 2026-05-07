@@ -9,6 +9,8 @@ benchmark routes in Chromium, and records:
 - initial route bytes
 - unique URL bytes and duplicate request overhead
 - JavaScript and CSS bytes by page
+- app entry bytes and Vite artifact gzip bytes
+- FCP, LCP, hydrated island count, last-hydrated time, and hydration span
 - Vite manifest dynamic island chunks
 - SSR content present in the initial HTML
 - server-only island hook absence
@@ -42,9 +44,10 @@ The runner writes `benchmarks/results/latest.json` and a matching Markdown
 summary. Result files are ignored by git because byte counts vary by machine,
 Node version, and Phoenix production settings.
 
-Budgets live in `benchmarks/budgets.json`. They intentionally track both total
-network bytes and unique URL bytes so regressions can catch duplicate entrypoint
-loads as well as real bundle growth.
+Budgets live in `benchmarks/budgets.json`. They intentionally track total
+network bytes, unique URL bytes, app entry bytes, runtime timings, and relative
+release-to-release regressions. This catches duplicate entrypoint loads, real
+bundle growth, slower hydration, and accidental loss of lazy framework loading.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
@@ -56,7 +59,9 @@ For release tags, it also publishes stable assets on the GitHub Release:
 When the previous release has `live-islands-benchmark.json`, the workflow
 downloads it and runs the new benchmark with `--compare`, so every release can
 show whether initial bytes, heavy interaction bytes, and route-flow bytes moved
-up or down.
+up or down. The workflow also appends the generated benchmark Markdown summary
+to the GitHub Release body under a stable marker, so the release page itself
+shows the current benchmark evidence.
 
 ## Current Test Environment
 

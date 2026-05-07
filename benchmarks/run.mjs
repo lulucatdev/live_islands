@@ -319,12 +319,108 @@ function attachDiagnostics(page) {
   return { responsePromises, browserErrors };
 }
 
+async function installRuntimeProbe(page) {
+  await page.addInitScript(() => {
+    const state = {
+      paints: {},
+      largestContentfulPaint: null,
+      mounted: [],
+      hydrated: [],
+    };
+
+    window.__liveIslandsBenchmarkRuntime = state;
+
+    const rememberIsland = (event, target) => {
+      const el = event.detail?.el;
+      target.push({
+        time: Math.round(performance.now()),
+        framework:
+          event.detail?.framework || el?.getAttribute?.("data-framework"),
+        name: event.detail?.name || el?.getAttribute?.("data-name"),
+        client: el?.getAttribute?.("data-client") || null,
+        prefetch: el?.getAttribute?.("data-prefetch") || null,
+      });
+    };
+
+    try {
+      const paintObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          state.paints[entry.name] = Math.round(entry.startTime);
+        }
+      });
+      paintObserver.observe({ type: "paint", buffered: true });
+    } catch (_error) {
+      // Paint timing is not available in every browser context.
+    }
+
+    try {
+      const lcpObserver = new PerformanceObserver((list) => {
+        const entries = list.getEntries();
+        const entry = entries[entries.length - 1];
+        if (entry) {
+          state.largestContentfulPaint = {
+            startTime: Math.round(entry.startTime),
+            size: entry.size || 0,
+            element: entry.element?.tagName || null,
+            url: entry.url || null,
+          };
+        }
+      });
+      lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
+    } catch (_error) {
+      // LCP is best effort for local benchmark runs.
+    }
+
+    window.addEventListener("live-islands:mounted", (event) =>
+      rememberIsland(event, state.mounted),
+    );
+    window.addEventListener("live-islands:hydrated", (event) =>
+      rememberIsland(event, state.hydrated),
+    );
+  });
+}
+
+async function runtimeMetrics(page) {
+  return page.evaluate(() => {
+    const state = window.__liveIslandsBenchmarkRuntime || {};
+    const paintEntries = performance.getEntriesByType("paint");
+    const paints = { ...(state.paints || {}) };
+
+    for (const entry of paintEntries) {
+      paints[entry.name] = Math.round(entry.startTime);
+    }
+
+    const hydrated = state.hydrated || [];
+    const firstHydrated = hydrated[0]?.time ?? null;
+    const lastHydrated = hydrated[hydrated.length - 1]?.time ?? null;
+
+    return {
+      firstPaint: paints["first-paint"] ?? null,
+      firstContentfulPaint: paints["first-contentful-paint"] ?? null,
+      largestContentfulPaint: state.largestContentfulPaint?.startTime ?? null,
+      largestContentfulPaintSize: state.largestContentfulPaint?.size ?? null,
+      islands: {
+        mountedCount: state.mounted?.length || 0,
+        hydratedCount: hydrated.length,
+        firstHydrated,
+        lastHydrated,
+        hydrationSpan:
+          firstHydrated != null && lastHydrated != null
+            ? lastHydrated - firstHydrated
+            : null,
+        hydrated,
+      },
+    };
+  });
+}
+
 async function collectPage(browser, pathname, options = {}) {
   const context = await browser.newContext({
     ignoreHTTPSErrors: true,
     serviceWorkers: "block",
   });
   const page = await context.newPage();
+  await installRuntimeProbe(page);
   const { responsePromises, browserErrors } = attachDiagnostics(page);
 
   const navigationStarted = Date.now();
@@ -400,6 +496,7 @@ async function collectPage(browser, pathname, options = {}) {
         }
       : null;
   });
+  const runtimeSummary = await runtimeMetrics(page);
 
   await context.close();
 
@@ -408,6 +505,7 @@ async function collectPage(browser, pathname, options = {}) {
     navigationMs,
     network: summarizeResponses(initialResponses),
     performance: performanceSummary,
+    runtime: runtimeSummary,
     browserErrors,
     manifest: manifest.map((island) => ({
       page: island.page,
@@ -569,6 +667,23 @@ function summarizePageSamples(samples) {
       ),
       decodedBodySize: numericStats(
         samples.map((sample) => sample.performance?.decodedBodySize),
+      ),
+    },
+    runtime: {
+      firstContentfulPaint: numericStats(
+        samples.map((sample) => sample.runtime?.firstContentfulPaint),
+      ),
+      largestContentfulPaint: numericStats(
+        samples.map((sample) => sample.runtime?.largestContentfulPaint),
+      ),
+      hydratedCount: numericStats(
+        samples.map((sample) => sample.runtime?.islands?.hydratedCount),
+      ),
+      lastHydrated: numericStats(
+        samples.map((sample) => sample.runtime?.islands?.lastHydrated),
+      ),
+      hydrationSpan: numericStats(
+        samples.map((sample) => sample.runtime?.islands?.hydrationSpan),
       ),
     },
     interaction:
@@ -761,68 +876,124 @@ function assertBenchmarks(result) {
 }
 
 function compare(previous, current) {
+  const metric = (name, before, after, unit = "bytes") => {
+    if (
+      typeof before !== "number" ||
+      !Number.isFinite(before) ||
+      typeof after !== "number" ||
+      !Number.isFinite(after)
+    ) {
+      return null;
+    }
+
+    return { name, before, after, unit };
+  };
+
   const fields = [
-    [
+    metric(
       "home total",
       previous.pages.home.network.totalBytes,
       current.pages.home.network.totalBytes,
-    ],
-    [
+    ),
+    metric(
       "home unique total",
       previous.pages.home.network.uniqueBytes ??
         previous.pages.home.network.totalBytes,
       current.pages.home.network.uniqueBytes,
-    ],
-    [
+    ),
+    metric(
+      "home first contentful paint",
+      previous.pages.home.runtime?.firstContentfulPaint,
+      current.pages.home.runtime?.firstContentfulPaint,
+      "ms",
+    ),
+    metric(
+      "home largest contentful paint",
+      previous.pages.home.runtime?.largestContentfulPaint,
+      current.pages.home.runtime?.largestContentfulPaint,
+      "ms",
+    ),
+    metric(
+      "home last island hydrated",
+      previous.pages.home.runtime?.islands?.lastHydrated,
+      current.pages.home.runtime?.islands?.lastHydrated,
+      "ms",
+    ),
+    metric(
       "benchmark initial total",
       previous.pages.benchmarks.network.totalBytes,
       current.pages.benchmarks.network.totalBytes,
-    ],
-    [
+    ),
+    metric(
       "benchmark initial unique total",
       previous.pages.benchmarks.network.uniqueBytes ??
         previous.pages.benchmarks.network.totalBytes,
       current.pages.benchmarks.network.uniqueBytes,
-    ],
-    [
+    ),
+    metric(
       "benchmark initial JS",
       previous.pages.benchmarks.network.jsBytes,
       current.pages.benchmarks.network.jsBytes,
-    ],
-    [
+    ),
+    metric(
+      "benchmark first contentful paint",
+      previous.pages.benchmarks.runtime?.firstContentfulPaint,
+      current.pages.benchmarks.runtime?.firstContentfulPaint,
+      "ms",
+    ),
+    metric(
+      "benchmark largest contentful paint",
+      previous.pages.benchmarks.runtime?.largestContentfulPaint,
+      current.pages.benchmarks.runtime?.largestContentfulPaint,
+      "ms",
+    ),
+    metric(
+      "benchmark last island hydrated",
+      previous.pages.benchmarks.runtime?.islands?.lastHydrated,
+      current.pages.benchmarks.runtime?.islands?.lastHydrated,
+      "ms",
+    ),
+    metric(
       "heavy interaction JS",
       previous.pages.benchmarks.interaction.network.jsBytes,
       current.pages.benchmarks.interaction.network.jsBytes,
-    ],
-    [
+    ),
+    metric(
+      "heavy interaction duration",
+      previous.pages.benchmarks.interaction.measure?.duration,
+      current.pages.benchmarks.interaction.measure?.duration,
+      "ms",
+    ),
+    metric(
       "artifact gzip total",
       previous.artifacts.totals.gzipBytes,
       current.artifacts.totals.gzipBytes,
-    ],
-  ];
+    ),
+  ].filter(Boolean);
 
   if (
     previous.flows?.capabilitiesToBenchmarks &&
     current.flows?.capabilitiesToBenchmarks
   ) {
     fields.push(
-      [
+      metric(
         "capabilities-to-benchmarks total",
         previous.flows.capabilitiesToBenchmarks.network.totalBytes,
         current.flows.capabilitiesToBenchmarks.network.totalBytes,
-      ],
-      [
+      ),
+      metric(
         "capabilities-to-benchmarks JS",
         previous.flows.capabilitiesToBenchmarks.network.jsBytes,
         current.flows.capabilitiesToBenchmarks.network.jsBytes,
-      ],
+      ),
     );
   }
 
-  return fields.map(([name, before, after]) => ({
+  return fields.filter(Boolean).map(({ name, before, after, unit }) => ({
     name,
     before,
     after,
+    unit,
     delta: after - before,
     deltaPercent: before
       ? Number((((after - before) / before) * 100).toFixed(2))
@@ -874,6 +1045,36 @@ function budgetFailures(result, budget) {
       result.artifacts.totals.gzipBytes,
       budget.artifacts?.maxGzipBytes,
     ],
+    [
+      "app entry bytes",
+      result.artifacts.app?.bytes,
+      budget.artifacts?.maxAppBytes,
+    ],
+    [
+      "home largest contentful paint",
+      result.pages.home.runtime?.largestContentfulPaint,
+      budget.home?.maxLargestContentfulPaintMs,
+    ],
+    [
+      "home last island hydrated",
+      result.pages.home.runtime?.islands?.lastHydrated,
+      budget.home?.maxLastHydratedMs,
+    ],
+    [
+      "benchmark largest contentful paint",
+      result.pages.benchmarks.runtime?.largestContentfulPaint,
+      budget.benchmarks?.maxLargestContentfulPaintMs,
+    ],
+    [
+      "benchmark last island hydrated",
+      result.pages.benchmarks.runtime?.islands?.lastHydrated,
+      budget.benchmarks?.maxLastHydratedMs,
+    ],
+    [
+      "benchmark heavy interaction duration",
+      result.pages.benchmarks.interaction.measure?.duration,
+      budget.benchmarks?.maxHeavyInteractionDurationMs,
+    ],
   ];
 
   if (result.flows?.capabilitiesToBenchmarks) {
@@ -894,6 +1095,46 @@ function budgetFailures(result, budget) {
   return checks
     .filter(([_name, actual, max]) => typeof max === "number" && actual > max)
     .map(([name, actual, max]) => `${name} ${actual} exceeded budget ${max}`);
+}
+
+function regressionFailures(result, budget) {
+  const policy = budget?.regressions;
+  if (!policy || !result.comparison) return [];
+
+  const defaults = {
+    maxDeltaPercent: policy.maxDeltaPercent,
+    maxDeltaBytes: policy.maxDeltaBytes,
+    maxDeltaMs: policy.maxDeltaMs,
+  };
+
+  return result.comparison.flatMap((row) => {
+    if (row.delta <= 0) return [];
+
+    const metricPolicy = policy.metrics?.[row.name] || {};
+    const maxDeltaPercent =
+      metricPolicy.maxDeltaPercent ?? defaults.maxDeltaPercent;
+    const maxDelta =
+      row.unit === "ms"
+        ? (metricPolicy.maxDeltaMs ?? defaults.maxDeltaMs)
+        : (metricPolicy.maxDeltaBytes ?? defaults.maxDeltaBytes);
+
+    const percentFailed =
+      typeof maxDeltaPercent === "number" &&
+      row.deltaPercent !== null &&
+      row.deltaPercent > maxDeltaPercent;
+    const absoluteFailed = typeof maxDelta === "number" && row.delta > maxDelta;
+
+    if (percentFailed && absoluteFailed) {
+      return [
+        `${row.name} regressed by ${formatComparisonValue(
+          row.delta,
+          row.unit,
+        )} (${row.deltaPercent}%)`,
+      ];
+    }
+
+    return [];
+  });
 }
 
 function formatBytes(value) {
@@ -956,6 +1197,12 @@ function markdown(result) {
     "| --- | ---: | ---: | ---: | ---: |",
     ...sampleStatsRows(result),
     "",
+    "## Runtime Metrics",
+    "",
+    "| Page | FCP | LCP | Hydrated Islands | Last Hydrated | Hydration Span |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ...runtimeRows(result),
+    "",
     "## Largest Benchmark Initial Requests",
     "",
     "| Resource | Type | Bytes |",
@@ -1013,15 +1260,44 @@ function elixirLine(value) {
   );
 }
 
+function runtimeRows(result) {
+  return [
+    ["Home", result.pages.home],
+    ["Benchmarks", result.pages.benchmarks],
+  ].map(([name, page]) => {
+    const runtime = page.runtime || {};
+    const islands = runtime.islands || {};
+
+    return `| ${name} | ${formatOptional(runtime.firstContentfulPaint, "ms")} | ${formatOptional(runtime.largestContentfulPaint, "ms")} | ${islands.hydratedCount ?? 0} | ${formatOptional(islands.lastHydrated, "ms")} | ${formatOptional(islands.hydrationSpan, "ms")} |`;
+  });
+}
+
 function sampleStatsRows(result) {
   const rows = [
     ["Home navigation", result.pages.home.stats.navigationMs, "ms"],
     ["Home total bytes", result.pages.home.stats.network.totalBytes, "bytes"],
+    ["Home FCP", result.pages.home.stats.runtime.firstContentfulPaint, "ms"],
+    ["Home LCP", result.pages.home.stats.runtime.largestContentfulPaint, "ms"],
     ["Benchmark navigation", result.pages.benchmarks.stats.navigationMs, "ms"],
     [
       "Benchmark total bytes",
       result.pages.benchmarks.stats.network.totalBytes,
       "bytes",
+    ],
+    [
+      "Benchmark FCP",
+      result.pages.benchmarks.stats.runtime.firstContentfulPaint,
+      "ms",
+    ],
+    [
+      "Benchmark LCP",
+      result.pages.benchmarks.stats.runtime.largestContentfulPaint,
+      "ms",
+    ],
+    [
+      "Benchmark last hydrated",
+      result.pages.benchmarks.stats.runtime.lastHydrated,
+      "ms",
     ],
     [
       "Heavy interaction duration",
@@ -1069,6 +1345,15 @@ function formatStat(value, unit) {
   return `${value} ${unit}`;
 }
 
+function formatOptional(value, unit) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  return formatStat(value, unit);
+}
+
+function formatComparisonValue(value, unit) {
+  return unit === "ms" ? `${value} ms` : formatBytes(value);
+}
+
 function comparisonMarkdown(result) {
   if (!result.comparison) return [];
 
@@ -1080,9 +1365,10 @@ function comparisonMarkdown(result) {
     "| --- | ---: | ---: | ---: | ---: |",
     ...result.comparison.map(
       (row) =>
-        `| ${row.name} | ${formatBytes(row.before)} | ${formatBytes(
-          row.after,
-        )} | ${formatBytes(row.delta)} | ${
+        `| ${row.name} | ${formatComparisonValue(
+          row.before,
+          row.unit,
+        )} | ${formatComparisonValue(row.after, row.unit)} | ${formatComparisonValue(row.delta, row.unit)} | ${
           row.deltaPercent === null ? "n/a" : `${row.deltaPercent}%`
         } |`,
     ),
@@ -1130,17 +1416,16 @@ async function main() {
             },
       };
 
-      const failures = [
-        ...assertBenchmarks(result),
-        ...budgetFailures(
-          result,
-          existsSync(budgetPath) ? readJson(budgetPath) : null,
-        ),
-      ];
-
       if (comparePath && existsSync(comparePath)) {
         result.comparison = compare(readJson(comparePath), result);
       }
+
+      const budget = existsSync(budgetPath) ? readJson(budgetPath) : null;
+      const failures = [
+        ...assertBenchmarks(result),
+        ...budgetFailures(result, budget),
+        ...regressionFailures(result, budget),
+      ];
 
       mkdirSync(dirname(outPath), { recursive: true });
       writeFileSync(outPath, `${JSON.stringify(result, null, 2)}\n`);

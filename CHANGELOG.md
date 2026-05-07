@@ -5,6 +5,17 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.5.0
+
+Runtime splitting and benchmark-driven regression policy.
+
+- Split the root LiveIslands client entry so React and Vue hook adapters load lazily when their islands mount instead of being bundled into the initial application entry.
+- Made island prefetching framework-neutral, so prefetch manifests no longer pull Vue runtime into the first page load.
+- Added a narrow `live_islands/react/app` export for component registries that only need `createReactIsland`.
+- Added `live-islands:hydrated` runtime events and benchmark FCP, LCP, hydrated island count, last-hydrated, and hydration-span measurements.
+- Added runtime budgets, app-entry byte budgets, and release-to-release regression thresholds for both bytes and timings.
+- Updated the benchmark release workflow to append the generated benchmark summary directly to GitHub Release notes.
+
 ## v0.4.2
 
 Release benchmark history and environment metadata.

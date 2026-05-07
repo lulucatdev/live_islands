@@ -1,6 +1,4 @@
 import { describeIslandElement, warnLiveIslands } from "./diagnostics.js";
-import { normalizeReactIslandApp } from "./react/app.js";
-import { normalizeVueIslandApp } from "./vue/app.js";
 
 const ISLAND_SELECTOR = "[data-framework][data-name]";
 const PAGE_SCOPE_SELECTOR = "[data-live-islands-page], [data-phx-main]";
@@ -220,11 +218,45 @@ export function getIslandScope(root = document, options = {}) {
   };
 }
 
-const normalizeApp = (framework, app) => {
+const resolveFromComponentMap = (framework, components, name) => {
+  if (framework === "vue") {
+    return Object.entries(components).find(
+      ([key]) =>
+        key.endsWith(`${name}.vue`) || key.endsWith(`${name}/index.vue`),
+    )?.[1];
+  }
+
+  return components[name];
+};
+
+const preloadValue = async (value) => {
+  if (!value) return null;
+  if (value instanceof Promise) return value;
+
+  // import.meta.glob entries are zero-argument functions that return promises.
+  // Direct component functions are already loaded and have nothing to preload.
+  if (typeof value === "function" && value.length === 0) {
+    const resolved = value();
+    if (resolved instanceof Promise) return resolved;
+  }
+
+  return value;
+};
+
+const normalizePreloadApp = (framework, app) => {
   if (!app) return null;
-  return framework === "react"
-    ? normalizeReactIslandApp(app)
-    : normalizeVueIslandApp(app);
+  if (typeof app.preload === "function") return app;
+
+  if (typeof app.resolve === "function") {
+    return {
+      preload: (name) => preloadValue(app.resolve(name)),
+    };
+  }
+
+  return {
+    preload: (name) =>
+      preloadValue(resolveFromComponentMap(framework, app, name)),
+  };
 };
 
 export function getIslandManifest(rootOrOptions = document, maybeOptions = {}) {
@@ -267,8 +299,8 @@ export function getPageIslandManifest(root = document) {
 
 export function createIslandPrefetcher({ react, vue } = {}, options = {}) {
   const apps = {
-    react: normalizeApp("react", react),
-    vue: normalizeApp("vue", vue),
+    react: normalizePreloadApp("react", react),
+    vue: normalizePreloadApp("vue", vue),
   };
   const defaultPolicy = options.defaultPolicy || "none";
   const scope = options.scope || "page";

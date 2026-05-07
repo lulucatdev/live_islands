@@ -14,6 +14,7 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Vue composables for events, navigation, forms, uploads, connection state, and slot injection
 - Astro-style async islands with `client={:load | :idle | :visible | :interaction | {:media, query}}`
 - Page-scoped island manifest and `prefetch={...}` policies for component chunks
+- Lazy React/Vue hook adapters, so the Phoenix entrypoint does not pay for framework runtimes before an island needs them
 - Vite manifest verification for lazy island chunks in production builds
 - Vite manifest asset tags for production content-hashed entrypoints
 - First-class server-only islands with `<.react_server>` and `<.vue_server>`
@@ -27,6 +28,7 @@ import {
   createReactIsland,
   getHooks as getReactHooks,
 } from "live_islands/react";
+import { createReactIsland as createReactIslandRegistry } from "live_islands/react/app";
 import { getHooks as getVueHooks, createVueIsland } from "live_islands/vue";
 import {
   defineClientStrategy,
@@ -36,6 +38,10 @@ import {
   getPageIslandManifest,
 } from "live_islands";
 ```
+
+Use `live_islands/react/app` for client component registries that only need
+`createReactIsland`; it avoids importing React hooks, context helpers, and Link
+helpers into the page entry.
 
 The root export can combine both frameworks:
 
@@ -97,7 +103,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only islands, measures initial route bytes, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only islands, measures initial route bytes, records FCP/LCP/hydration timing, checks route-to-route LiveView navigation, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 

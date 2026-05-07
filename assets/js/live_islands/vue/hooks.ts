@@ -17,6 +17,14 @@ import { describeIslandElement } from "../diagnostics.js";
 const shouldHydrate = (el: HTMLElement): boolean =>
   el.getAttribute("data-ssr") === "true" && el.hasChildNodes();
 
+function dispatchHydrated(el: HTMLElement, name: string) {
+  window.dispatchEvent(
+    new CustomEvent("live-islands:hydrated", {
+      detail: { el, framework: "vue", name },
+    }),
+  );
+}
+
 export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
   mounted() {
     const el = this.el as HTMLElement;
@@ -70,6 +78,7 @@ export const getVueIslandHook = ({ resolve, setup }: VueIslandApp): Hook => ({
       if (!app) throw new Error("Setup function did not return a Vue app!");
 
       this.vue.app = app;
+      dispatchHydrated(el, componentName);
     });
   },
   updated() {

@@ -1,22 +1,43 @@
 {
   "home": {
-    "maxTotalBytes": 650000,
-    "maxUniqueBytes": 650000
+    "maxTotalBytes": 500000,
+    "maxUniqueBytes": 500000,
+    "maxLargestContentfulPaintMs": 2500,
+    "maxLastHydratedMs": 2500
   },
   "benchmarks": {
     "maxInitialTotalBytes": 700000,
     "maxInitialUniqueBytes": 700000,
     "maxInitialJsBytes": 560000,
     "maxHeavyInteractionTotalBytes": 2200000,
-    "maxHeavyInteractionJsBytes": 2100000
+    "maxHeavyInteractionJsBytes": 2100000,
+    "maxLargestContentfulPaintMs": 3000,
+    "maxLastHydratedMs": 3000,
+    "maxHeavyInteractionDurationMs": 1000
   },
   "artifacts": {
-    "maxGzipBytes": 1900000
+    "maxGzipBytes": 1900000,
+    "maxAppBytes": 200000
   },
   "flows": {
     "capabilitiesToBenchmarks": {
       "maxTotalBytes": 80000,
       "maxJsBytes": 70000
+    }
+  },
+  "regressions": {
+    "maxDeltaPercent": 5,
+    "maxDeltaBytes": 50000,
+    "maxDeltaMs": 250,
+    "metrics": {
+      "capabilities-to-benchmarks JS": {
+        "maxDeltaBytes": 10000,
+        "maxDeltaPercent": 20
+      },
+      "heavy interaction duration": {
+        "maxDeltaMs": 500,
+        "maxDeltaPercent": 50
+      }
     }
   }
 }

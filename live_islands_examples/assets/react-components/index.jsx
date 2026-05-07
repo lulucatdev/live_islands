@@ -1,7 +1,7 @@
 // polyfill recommended by Vite https://vitejs.dev/config/build-options#build-modulepreload
 import "vite/modulepreload-polyfill";
 
-import { createReactIsland, Link } from "live_islands/react";
+import { createReactIsland } from "live_islands/react/app";
 
 const components = {
   BenchmarkStaticReport: () => import("./benchmark-static-report"),
@@ -14,7 +14,7 @@ const components = {
   FlashSonner: () => import("./flash-sonner"),
   GithubCode: () => import("./github-code"),
   Lazy: () => import("./lazy"),
-  Link,
+  Link: () => import("./link"),
   LinkExample: () => import("./link-example"),
   LogList: () => import("./log-list"),
   SSR: () => import("./ssr"),
@@ -28,8 +28,6 @@ export default createReactIsland({
   availableComponents: components,
   resolve: (name) => {
     const component = components[name];
-    return typeof component === "function" && name !== "Link"
-      ? component()
-      : component;
+    return typeof component === "function" ? component() : component;
   },
 });

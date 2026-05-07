@@ -83,6 +83,14 @@ function getHandlers(hook) {
   return result;
 }
 
+function dispatchHydrated(el, name) {
+  window.dispatchEvent(
+    new CustomEvent("live-islands:hydrated", {
+      detail: { el, framework: "react", name },
+    }),
+  );
+}
+
 export function getHooks(components) {
   const app = normalizeReactIslandApp(components);
 
@@ -128,9 +136,11 @@ export function getHooks(components) {
             getLiveContext(this),
           );
           this._root = ReactDOM.hydrateRoot(this.el, tree);
+          dispatchHydrated(this.el, componentName);
         } else {
           this._root = ReactDOM.createRoot(this.el);
           this._render();
+          dispatchHydrated(this.el, componentName);
         }
       });
     },
