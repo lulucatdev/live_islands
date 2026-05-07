@@ -5,6 +5,15 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.4.2
+
+Release benchmark history and environment metadata.
+
+- Added benchmark environment fingerprints to JSON and Markdown results, including OS, CPU, Node, npm, Elixir, Erlang/OTP, Playwright, Chromium, package, command, and GitHub runner metadata.
+- Updated the benchmark workflow so every `v*` release tag uploads stable benchmark assets to the GitHub Release.
+- Added automatic comparison against the previous release benchmark asset when one is available.
+- Documented the canonical CI benchmark environment and the local environment used to validate this benchmark stage.
+
 ## v0.4.1
 
 Benchmark harness stability and route-flow measurement.

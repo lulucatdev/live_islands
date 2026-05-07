@@ -8,6 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { arch, cpus, platform, release, totalmem, type } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -57,6 +58,27 @@ function run(command, commandArgs, options = {}) {
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function commandOutput(command, commandArgs, options = {}) {
+  try {
+    return execFileSync(command, commandArgs, {
+      cwd: options.cwd || root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch (_error) {
+    return null;
+  }
+}
+
+function dependencyVersion(packageJson, name) {
+  return (
+    packageJson.dependencies?.[name] ||
+    packageJson.devDependencies?.[name] ||
+    packageJson.peerDependencies?.[name] ||
+    null
+  );
 }
 
 function bytes(path) {
@@ -594,6 +616,75 @@ function readGitRevision() {
   }
 }
 
+function benchmarkEnvironment(browser) {
+  const rootPackage = readJson(join(root, "package.json"));
+  const assetsPackage = readJson(join(exampleRoot, "assets/package.json"));
+  const cpu = cpus()[0];
+
+  return {
+    system: {
+      platform: platform(),
+      type: type(),
+      release: release(),
+      arch: arch(),
+      cpuCount: cpus().length,
+      cpuModel: cpu?.model || null,
+      totalMemoryBytes: totalmem(),
+    },
+    runtimes: {
+      node: process.version,
+      npm: commandOutput("npm", ["--version"]),
+      elixir: commandOutput("elixir", ["--version"]),
+      erlangOtp: commandOutput("erl", [
+        "-noshell",
+        "-eval",
+        'io:format("~s", [erlang:system_info(otp_release)]), halt().',
+      ]),
+      playwright: commandOutput("npx", ["playwright", "--version"]),
+      chromium: browser.version(),
+    },
+    packages: {
+      liveIslands: rootPackage.version,
+      rootPlaywright: dependencyVersion(rootPackage, "@playwright/test"),
+      examplePhoenix: dependencyVersion(assetsPackage, "phoenix"),
+      exampleLiveView: dependencyVersion(assetsPackage, "phoenix_live_view"),
+      exampleReact: dependencyVersion(assetsPackage, "react"),
+      exampleVue: dependencyVersion(assetsPackage, "vue"),
+      exampleVite: dependencyVersion(assetsPackage, "vite"),
+      exampleTailwind: dependencyVersion(assetsPackage, "tailwindcss"),
+      exampleKatex: dependencyVersion(assetsPackage, "katex"),
+      examplePdfjs: dependencyVersion(assetsPackage, "pdfjs-dist"),
+    },
+    benchmark: {
+      command: ["node", "benchmarks/run.mjs", ...process.argv.slice(2)].join(
+        " ",
+      ),
+      mixEnv: "prod",
+      port,
+      sampleCount,
+      skipBuild,
+      skipFlow,
+      budgetPath: relative(root, resolve(root, budgetPath)),
+      comparePath: comparePath
+        ? relative(root, resolve(root, comparePath))
+        : null,
+    },
+    github: {
+      ci: Boolean(process.env.CI),
+      repository: process.env.GITHUB_REPOSITORY || null,
+      workflow: process.env.GITHUB_WORKFLOW || null,
+      runId: process.env.GITHUB_RUN_ID || null,
+      runAttempt: process.env.GITHUB_RUN_ATTEMPT || null,
+      eventName: process.env.GITHUB_EVENT_NAME || null,
+      ref: process.env.GITHUB_REF || null,
+      refName: process.env.GITHUB_REF_NAME || null,
+      sha: process.env.GITHUB_SHA || null,
+      runnerOs: process.env.RUNNER_OS || null,
+      runnerArch: process.env.RUNNER_ARCH || null,
+    },
+  };
+}
+
 function assertBenchmarks(result) {
   const failures = [];
   const benchmarkPage = result.pages.benchmarks;
@@ -842,6 +933,7 @@ function markdown(result) {
     `- Created: ${result.createdAt}`,
     `- Base URL: ${result.baseURL}`,
     `- Samples per page: ${result.sampleCount}`,
+    ...environmentMarkdown(result),
     "",
     "## Summary",
     "",
@@ -893,6 +985,32 @@ function markdown(result) {
     JSON.stringify(result.pages.benchmarks.manifest, null, 2),
     "```",
   ].join("\n");
+}
+
+function environmentMarkdown(result) {
+  const environment = result.environment;
+  if (!environment) return [];
+
+  return [
+    `- CI: ${environment.github.ci}`,
+    `- OS: ${environment.system.type} ${environment.system.release} (${environment.system.arch})`,
+    `- CPU: ${environment.system.cpuCount} x ${environment.system.cpuModel || "unknown"}`,
+    `- Node: ${environment.runtimes.node}`,
+    `- npm: ${environment.runtimes.npm || "unknown"}`,
+    `- Elixir/OTP: ${elixirLine(environment.runtimes.elixir)} / ${environment.runtimes.erlangOtp || "unknown"}`,
+    `- Playwright/Chromium: ${environment.runtimes.playwright || "unknown"} / ${environment.runtimes.chromium || "unknown"}`,
+  ];
+}
+
+function firstLine(value) {
+  return value?.split(/\r?\n/).find(Boolean) || "unknown";
+}
+
+function elixirLine(value) {
+  return (
+    value?.split(/\r?\n/).find((line) => line.startsWith("Elixir ")) ||
+    firstLine(value)
+  );
 }
 
 function sampleStatsRows(result) {
@@ -992,11 +1110,12 @@ async function main() {
 
     try {
       const result = {
-        version: 2,
+        version: 3,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
         sampleCount,
+        environment: benchmarkEnvironment(browser),
         artifacts: buildArtifacts(),
         pages: {
           home: await collectScenario(browser, "/"),

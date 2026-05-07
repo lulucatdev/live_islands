@@ -7,6 +7,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   production_benchmarks:
     runs-on: ubuntu-latest
@@ -40,8 +43,49 @@ jobs:
       - name: Install example asset dependencies
         run: npm ci --prefix live_islands_examples/assets
 
+      - name: Download previous release benchmark
+        id: previous_benchmark
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          current="${GITHUB_REF_NAME}"
+          previous="$(gh release list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --exclude-drafts \
+            --exclude-pre-releases \
+            --limit 20 \
+            --json tagName \
+            --jq "[.[].tagName | select(. != \"${current}\")][0] // \"\"")"
+
+          if [ -z "${previous}" ]; then
+            echo "No previous release found."
+            exit 0
+          fi
+
+          mkdir -p benchmarks/results/previous
+
+          if gh release download "${previous}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "live-islands-benchmark.json" \
+            --dir benchmarks/results/previous; then
+            echo "compare=--compare=benchmarks/results/previous/live-islands-benchmark.json" >> "${GITHUB_OUTPUT}"
+            echo "previous_tag=${previous}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Previous release ${previous} has no benchmark asset."
+          fi
+
       - name: Run production benchmarks
-        run: npm run benchmarks
+        env:
+          COMPARE_ARGS: ${{ steps.previous_benchmark.outputs.compare }}
+        run: npm run benchmarks -- ${COMPARE_ARGS}
+
+      - name: Prepare benchmark release assets
+        run: |
+          cp benchmarks/results/latest.json benchmarks/results/live-islands-benchmark.json
+          cp benchmarks/results/latest.md benchmarks/results/live-islands-benchmark.md
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
@@ -50,3 +94,24 @@ jobs:
           path: |
             benchmarks/results/latest.json
             benchmarks/results/latest.md
+            benchmarks/results/live-islands-benchmark.json
+            benchmarks/results/live-islands-benchmark.md
+
+      - name: Publish benchmark assets to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file benchmarks/results/latest.md
+
+          gh release upload "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            benchmarks/results/live-islands-benchmark.json \
+            benchmarks/results/live-islands-benchmark.md \
+            --clobber

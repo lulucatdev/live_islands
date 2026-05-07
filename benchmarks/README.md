@@ -15,6 +15,7 @@ benchmark routes in Chromium, and records:
 - page-scoped island manifests after route navigation
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
 - deferred KaTeX and PDF.js bytes loaded after user intent
+- the OS, runtime, browser, CI, and package environment used for the run
 - browser console/page errors that would make the benchmark misleading
 
 Run the full suite:
@@ -47,3 +48,39 @@ loads as well as real bundle growth.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
+For release tags, it also publishes stable assets on the GitHub Release:
+
+- `live-islands-benchmark.json`
+- `live-islands-benchmark.md`
+
+When the previous release has `live-islands-benchmark.json`, the workflow
+downloads it and runs the new benchmark with `--compare`, so every release can
+show whether initial bytes, heavy interaction bytes, and route-flow bytes moved
+up or down.
+
+## Current Test Environment
+
+The canonical release benchmark environment is the GitHub Actions
+`Benchmarks` workflow:
+
+- runner: GitHub-hosted `ubuntu-latest`
+- Erlang/OTP: `27.2.0`
+- Elixir: `1.18.1`
+- Node.js: `22`
+- browser: Playwright Chromium installed by `npx playwright install --with-deps chromium`
+- Phoenix mode: `MIX_ENV=prod`, `PHX_SERVER=true`, `PHX_HOST=127.0.0.1`
+- benchmark server port: `4317`
+- samples: `3` per page by default
+
+The local environment used while developing this benchmark stage was:
+
+- OS: macOS `26.4.1` (`arm64`)
+- Erlang/OTP: `27`
+- Elixir: `1.18.2`
+- Node.js: `25.9.0`
+- npm: `11.12.1`
+- Playwright: `1.59.1`
+
+Each generated benchmark JSON also includes an `environment` object with the
+actual system, runtime, browser, package, command, and GitHub runner metadata for
+that specific run.
