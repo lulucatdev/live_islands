@@ -591,6 +591,35 @@ async function collectPage(browser, pathname, options = {}) {
     };
   }
 
+  let todoInteraction = null;
+  if (options.todoInteraction) {
+    const initialInteractionCount = responsePromises.length;
+    const startedAt = Date.now();
+
+    await page.getByTestId("todo-title-input").fill("Benchmark todo task");
+    await page.getByTestId("todo-add-button").click();
+    await page.getByText("Benchmark todo task").waitFor();
+    await page.getByTestId("todo-plan-button").click();
+    await page.getByTestId("todo-plan-headline").waitFor();
+    await page
+      .locator("#todo_rhythm_panel")
+      .getByTestId("todo-mode-plan")
+      .click();
+    await page.getByText("Plan mode").waitFor();
+    await page.getByTestId("todo-command-toggle").click();
+    await page.getByTestId("todo-command-ship-review").click();
+    await page.waitForLoadState("networkidle");
+
+    const allResponses = (await Promise.all(responsePromises)).filter(Boolean);
+    const added = allResponses.slice(initialInteractionCount);
+
+    todoInteraction = {
+      durationMs: Date.now() - startedAt,
+      network: summarizeResponses(added),
+      planHeadline: await page.getByTestId("todo-plan-headline").textContent(),
+    };
+  }
+
   const manifest = await page.evaluate(() => {
     const runtimeManifest = window.__liveIslandsPrefetch?.manifest?.();
     if (runtimeManifest?.length > 0) return runtimeManifest;
@@ -673,6 +702,17 @@ async function collectPage(browser, pathname, options = {}) {
           })),
       }
     : null;
+  const todoProof = options.todoProof
+    ? {
+        containsSsrDigest: html.includes("Morning digest"),
+        containsVueServerProof: html.includes(
+          "Server-rendered Vue proof with no client hydration",
+        ),
+        containsDeferredFallback: html.includes("todo-deferred-fallback"),
+        staticDigestHasHook: /id="todo_static_digest"[^>]*phx-hook/.test(html),
+        staticRhythmHasHook: /id="todo_static_rhythm"[^>]*phx-hook/.test(html),
+      }
+    : null;
 
   await context.close();
 
@@ -720,6 +760,8 @@ async function collectPage(browser, pathname, options = {}) {
       loadSpan: runtimeSummary.deferred?.loadSpan ?? null,
     },
     interaction,
+    todoProof,
+    todoInteraction,
   };
 }
 
@@ -916,6 +958,9 @@ function summarizePageSamples(samples) {
   const interactionSamples = samples
     .map((sample) => sample.interaction)
     .filter(Boolean);
+  const todoInteractionSamples = samples
+    .map((sample) => sample.todoInteraction)
+    .filter(Boolean);
 
   return {
     navigationMs: numericStats(samples.map((sample) => sample.navigationMs)),
@@ -984,6 +1029,20 @@ function summarizePageSamples(samples) {
             ),
             duration: numericStats(
               interactionSamples.map((sample) => sample.measure?.duration),
+            ),
+          }
+        : null,
+    todoInteraction:
+      todoInteractionSamples.length > 0
+        ? {
+            totalBytes: numericStats(
+              todoInteractionSamples.map((sample) => sample.network.totalBytes),
+            ),
+            jsBytes: numericStats(
+              todoInteractionSamples.map((sample) => sample.network.jsBytes),
+            ),
+            duration: numericStats(
+              todoInteractionSamples.map((sample) => sample.durationMs),
             ),
           }
         : null,
@@ -1091,6 +1150,7 @@ function assertBenchmarks(result) {
   const failures = [];
   const serverOnlyPage = result.pages.serverOnly;
   const benchmarkPage = result.pages.benchmarks;
+  const todoPage = result.pages.todoApp;
   const profilePages = [
     {
       name: "react-only profile",
@@ -1229,6 +1289,59 @@ function assertBenchmarks(result) {
           .join("; ")}`,
       );
     }
+  }
+
+  if (!todoPage.todoProof?.containsSsrDigest) {
+    failures.push("todo app is missing the React server-only SSR digest");
+  }
+  if (!todoPage.todoProof?.containsVueServerProof) {
+    failures.push("todo app is missing the Vue server-only SSR proof");
+  }
+  if (!todoPage.todoProof?.containsDeferredFallback) {
+    failures.push("todo app is missing the deferred server island fallback");
+  }
+  if (todoPage.todoProof?.staticDigestHasHook) {
+    failures.push("todo app React server-only digest unexpectedly has a hook");
+  }
+  if (todoPage.todoProof?.staticRhythmHasHook) {
+    failures.push("todo app Vue server-only proof unexpectedly has a hook");
+  }
+  if (
+    !todoPage.manifest.some(
+      (island) =>
+        island.framework === "react" && island.name === "TodoWorkspace",
+    )
+  ) {
+    failures.push("todo app manifest is missing TodoWorkspace");
+  }
+  if (
+    !todoPage.manifest.some(
+      (island) => island.framework === "vue" && island.name === "todo-rhythm",
+    )
+  ) {
+    failures.push("todo app manifest is missing todo-rhythm");
+  }
+  if (!todoPage.todoInteraction?.planHeadline?.includes("Focus")) {
+    failures.push(
+      "todo app event-reply planner did not return a focus headline",
+    );
+  }
+  if (todoPage.deferred.loadedCount < 1) {
+    failures.push("todo app deferred server island did not load");
+  }
+  if (todoPage.network.failedResponses.length > 0) {
+    failures.push(
+      `todo app loaded failed responses: ${todoPage.network.failedResponses
+        .map((response) => `${response.status} ${response.url}`)
+        .join("; ")}`,
+    );
+  }
+  if (todoPage.browserErrors.length > 0) {
+    failures.push(
+      `todo app emitted browser errors: ${todoPage.browserErrors
+        .map((error) => error.text)
+        .join("; ")}`,
+    );
   }
 
   if (!benchmarkPage.ssr.containsServerReport) {
@@ -1462,6 +1575,27 @@ function compare(previous, current) {
       current.pages.mixedProfile.network.jsBytes,
     ),
     metric(
+      "todo app initial total",
+      previous.pages.todoApp?.network?.totalBytes,
+      current.pages.todoApp.network.totalBytes,
+    ),
+    metric(
+      "todo app initial JS",
+      previous.pages.todoApp?.network?.jsBytes,
+      current.pages.todoApp.network.jsBytes,
+    ),
+    metric(
+      "todo app interaction total",
+      previous.pages.todoApp?.todoInteraction?.network?.totalBytes,
+      current.pages.todoApp.todoInteraction.network.totalBytes,
+    ),
+    metric(
+      "todo app interaction duration",
+      previous.pages.todoApp?.todoInteraction?.durationMs,
+      current.pages.todoApp.todoInteraction.durationMs,
+      "ms",
+    ),
+    metric(
       "benchmark initial total",
       previous.pages.benchmarks.network.totalBytes,
       current.pages.benchmarks.network.totalBytes,
@@ -1644,6 +1778,31 @@ function budgetFailures(result, budget) {
       budget.profiles?.mixed?.maxJsBytes,
     ],
     [
+      "todo app initial total bytes",
+      result.pages.todoApp?.network?.totalBytes,
+      budget.todoApp?.maxInitialTotalBytes,
+    ],
+    [
+      "todo app initial JS bytes",
+      result.pages.todoApp?.network?.jsBytes,
+      budget.todoApp?.maxInitialJsBytes,
+    ],
+    [
+      "todo app interaction total bytes",
+      result.pages.todoApp?.todoInteraction?.network?.totalBytes,
+      budget.todoApp?.maxInteractionTotalBytes,
+    ],
+    [
+      "todo app interaction duration",
+      result.pages.todoApp?.todoInteraction?.durationMs,
+      budget.todoApp?.maxInteractionDurationMs,
+    ],
+    [
+      "todo app deferred HTML bytes",
+      result.pages.todoApp?.deferred?.network?.totalBytes,
+      budget.todoApp?.maxDeferredHtmlBytes,
+    ],
+    [
       "benchmark initial unique bytes",
       result.pages.benchmarks.network.uniqueBytes,
       budget.benchmarks?.maxInitialUniqueBytes,
@@ -1807,6 +1966,12 @@ function markdown(result) {
     ["Vue-only profile JS", result.pages.vueOnly.network.jsBytes],
     ["Mixed profile total", result.pages.mixedProfile.network.totalBytes],
     ["Mixed profile JS", result.pages.mixedProfile.network.jsBytes],
+    ["Todo app initial total", result.pages.todoApp.network.totalBytes],
+    ["Todo app initial JS", result.pages.todoApp.network.jsBytes],
+    [
+      "Todo app interaction total",
+      result.pages.todoApp.todoInteraction.network.totalBytes,
+    ],
     ["Benchmark initial total", result.pages.benchmarks.network.totalBytes],
     [
       "Benchmark initial unique URL total",
@@ -1881,6 +2046,18 @@ function markdown(result) {
     "| Profile | Total | JS | Module Scripts | LiveSocket | Frameworks | Hydrated Islands |",
     "| --- | ---: | ---: | ---: | --- | --- | ---: |",
     ...profileMatrixRows(result),
+    "",
+    "## Todo App Proof",
+    "",
+    `- React server-only digest in initial HTML: ${result.pages.todoApp.todoProof.containsSsrDigest}`,
+    `- Vue server-only proof in initial HTML: ${result.pages.todoApp.todoProof.containsVueServerProof}`,
+    `- Deferred fallback in initial HTML: ${result.pages.todoApp.todoProof.containsDeferredFallback}`,
+    `- React server-only digest has no hook: ${!result.pages.todoApp.todoProof.staticDigestHasHook}`,
+    `- Vue server-only proof has no hook: ${!result.pages.todoApp.todoProof.staticRhythmHasHook}`,
+    `- Deferred server island loaded: ${result.pages.todoApp.deferred.loadedCount}`,
+    `- Interaction bytes: ${formatBytes(result.pages.todoApp.todoInteraction.network.totalBytes)}`,
+    `- Interaction duration: ${result.pages.todoApp.todoInteraction.durationMs} ms`,
+    `- Event-reply headline: ${result.pages.todoApp.todoInteraction.planHeadline}`,
     "",
     "## Sample Stability",
     "",
@@ -1977,6 +2154,7 @@ function runtimeRows(result) {
     ["React Only", result.pages.reactOnly],
     ["Vue Only", result.pages.vueOnly],
     ["Mixed", result.pages.mixedProfile],
+    ["Todo App", result.pages.todoApp],
     ["Benchmarks", result.pages.benchmarks],
   ].map(([name, page]) => {
     const runtime = page.runtime || {};
@@ -2068,6 +2246,26 @@ function sampleStatsRows(result) {
       "Mixed profile hydrated islands",
       result.pages.mixedProfile.stats.runtime.hydratedCount,
       "count",
+    ],
+    [
+      "Todo app initial total bytes",
+      result.pages.todoApp.stats.network.totalBytes,
+      "bytes",
+    ],
+    [
+      "Todo app initial JS bytes",
+      result.pages.todoApp.stats.network.jsBytes,
+      "bytes",
+    ],
+    [
+      "Todo app hydrated islands",
+      result.pages.todoApp.stats.runtime.hydratedCount,
+      "count",
+    ],
+    [
+      "Todo app interaction duration",
+      result.pages.todoApp.stats.todoInteraction?.duration,
+      "ms",
     ],
     ["Benchmark navigation", result.pages.benchmarks.stats.navigationMs, "ms"],
     [
@@ -2233,7 +2431,7 @@ async function main() {
 
     try {
       const result = {
-        version: 8,
+        version: 9,
         createdAt: new Date().toISOString(),
         commit: readGitRevision(),
         baseURL,
@@ -2248,6 +2446,10 @@ async function main() {
           reactOnly: await collectScenario(browser, "/profile/react-only"),
           vueOnly: await collectScenario(browser, "/profile/vue-only"),
           mixedProfile: await collectScenario(browser, "/profile/mixed"),
+          todoApp: await collectScenario(browser, "/todo", {
+            todoProof: true,
+            todoInteraction: true,
+          }),
           benchmarks: await collectScenario(browser, "/benchmarks", {
             heavyInteraction: true,
           }),
@@ -2305,6 +2507,16 @@ async function main() {
         {
           metric: "mixed profile JS",
           value: formatBytes(result.pages.mixedProfile.network.jsBytes),
+        },
+        {
+          metric: "todo app initial JS",
+          value: formatBytes(result.pages.todoApp.network.jsBytes),
+        },
+        {
+          metric: "todo app interaction",
+          value: formatBytes(
+            result.pages.todoApp.todoInteraction.network.totalBytes,
+          ),
         },
         {
           metric: "server-only forbidden chunks",

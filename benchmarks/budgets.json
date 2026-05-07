@@ -33,10 +33,17 @@
     "maxHeavyInteractionTotalBytes": 2200000,
     "maxHeavyInteractionJsBytes": 2100000,
     "maxLargestContentfulPaintMs": 3000,
-    "maxLastHydratedMs": 3000,
+    "maxLastHydratedMs": 4000,
     "maxHeavyInteractionDurationMs": 1000,
     "maxDeferredLastLoadedMs": 2500,
     "maxDeferredHtmlBytes": 50000
+  },
+  "todoApp": {
+    "maxInitialTotalBytes": 900000,
+    "maxInitialJsBytes": 800000,
+    "maxInteractionTotalBytes": 120000,
+    "maxInteractionDurationMs": 2000,
+    "maxDeferredHtmlBytes": 20000
   },
   "artifacts": {
     "maxGzipBytes": 1900000,

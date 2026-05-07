@@ -10,6 +10,59 @@
   min-height: 24rem;
 }
 
+.todo-demo {
+  --todo-grid: rgba(24, 24, 27, 0.08);
+}
+
+.todo-card {
+  border-radius: 8px;
+}
+
+.todo-hero {
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(239, 246, 255, 0.82)
+    ),
+    linear-gradient(
+      90deg,
+      rgba(16, 185, 129, 0.12),
+      rgba(14, 165, 233, 0.1),
+      rgba(244, 63, 94, 0.08)
+    );
+}
+
+.todo-grid-overlay {
+  background-image: linear-gradient(var(--todo-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--todo-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+  animation: todo-grid-drift 18s linear infinite;
+}
+
+.todo-rhythm-pulse {
+  animation: todo-soft-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes todo-grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 56px 28px;
+  }
+}
+
+@keyframes todo-soft-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -75,12 +75,19 @@ Borrowed from Astro page layouts and Remix route contracts.
 
 ## v0.11 Complex Demo App
 
-Planned next stage.
+Borrowed from Linear-style command surfaces, Todoist-style task flow, and
+Astro's product-page insistence on measuring what users actually load.
 
-- Build a realistic demo app rather than another isolated capability page
-- Exercise React and Vue islands on separate and mixed screens
-- Include server-only SSR, deferred server islands, visible/intent hydration,
-  page-scoped prefetch, route navigation, forms/events, and heavy optional
-  assets
-- Add an e2e and benchmark track that treats the demo as a product workflow
-  with initial-load, route-change, interaction, and SSR correctness budgets
+- API: no new public API; the stage proves the existing React/Vue island
+  surface can compose a full product workflow
+- Runtime: `/todo` uses React and Vue islands together with server-only SSR,
+  deferred server islands, `client={:load | :visible | :interaction}`,
+  `prefetch={:load | :idle | :intent}`, event replies, LiveView event pushes,
+  and page-scoped manifests
+- Tests: browser e2e covers task creation, event-reply planning, Vue mode
+  switching, command-center interaction hydration, focus timer hydration,
+  server-only hook absence, and manifest assertions
+- Benchmarks: schema `version: 9` records Todo initial total bytes, initial
+  JavaScript bytes, hydrated island counts, deferred SSR fetch bytes, workflow
+  interaction bytes, interaction duration, SSR proof rows, budgets, and
+  release-to-release comparison metrics

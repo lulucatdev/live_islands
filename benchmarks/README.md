@@ -10,6 +10,8 @@ benchmark routes in Chromium, and records:
 - unique URL bytes and duplicate request overhead
 - JavaScript and CSS bytes by page
 - React-only, Vue-only, and mixed asset profile page bytes
+- `/todo` product workflow initial bytes, interaction bytes, interaction timing,
+  SSR/deferred proof, and manifest coverage
 - app entry bytes and Vite artifact gzip bytes
 - FCP, LCP, hydrated island count, last-hydrated time, deferred island time, and prefetch event counts
 - intent prefetch bytes, timing, modulepreload links, and proof that target chunks wait for explicit intent
@@ -22,6 +24,8 @@ benchmark routes in Chromium, and records:
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
 - an intent prefetch flow on `/capabilities`
 - deferred KaTeX and PDF.js bytes loaded after user intent
+- Todo workflow bytes for task creation, event-reply planning, Vue mode
+  switching, interaction-hydrated command center loading, and deferred SSR
 - the OS, runtime, browser, CI, and package environment used for the run
 - browser console/page errors that would make the benchmark misleading
 
@@ -50,12 +54,12 @@ summary. Result files are ignored by git because byte counts vary by machine,
 Node version, and Phoenix production settings.
 
 Budgets live in `benchmarks/budgets.json`. They intentionally track total
-network bytes, unique URL bytes, asset profile pages, app entry bytes, runtime timings, server-only
+network bytes, unique URL bytes, asset profile pages, the complex Todo app, app entry bytes, runtime timings, server-only
 shell JavaScript, zero-JS violations, deferred island bytes, intent prefetch bytes, and relative release-to-release
 regressions. This catches duplicate entrypoint loads, real bundle growth, slower
 hydration, slower deferred SSR fetches, premature intent loads, and accidental
 loss of lazy framework loading, hookless server-only rendering, page-scoped
-profile manifests, or CSS-only shell behavior.
+profile manifests, Todo workflow SSR/deferred behavior, or CSS-only shell behavior.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
@@ -67,7 +71,7 @@ For release tags, it also publishes stable assets on the GitHub Release:
 When the previous release has `live-islands-benchmark.json`, the workflow
 downloads it and runs the new benchmark with `--compare`, so every release can
 show whether initial bytes, server-only bytes, heavy interaction bytes,
-profile bytes, route-flow bytes, and intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
+profile bytes, Todo workflow bytes, route-flow bytes, and intent prefetch bytes moved up or down. The workflow also appends the generated benchmark Markdown summary
 to the GitHub Release body under a stable marker, so the release page itself
 shows the current benchmark evidence.
 

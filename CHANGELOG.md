@@ -5,6 +5,16 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.11.0
+
+Complex Todo demo app with product-workflow benchmarks.
+
+- Added a full-screen `/todo` demo app that uses LiveView as the source of truth while composing React and Vue islands in one polished product surface.
+- Exercised React SSR, Vue SSR, server-only islands, deferred server islands, `client={:load | :visible | :interaction}`, `prefetch={:load | :idle | :intent}`, event replies, LiveView event pushes, and page-scoped manifests in one workflow.
+- Added React islands for the workspace, focus timer, command center, SSR digest, and deferred digest, plus a Vue rhythm panel with visible hydration and mode events.
+- Added browser e2e coverage for the full Todo workflow, including task creation, event-reply planning, Vue mode switching, command-center interaction, focus timer hydration, server-only hook absence, and manifest assertions.
+- Extended benchmark schema `version: 9` with `/todo` initial bytes, JavaScript bytes, hydrated island counts, deferred SSR bytes, event-reply interaction timing, budgets, Markdown proof output, and release-to-release comparison metrics.
+
 ## v0.10.0
 
 Island-aware asset profiles and page profile benchmarks.

@@ -22,6 +22,11 @@ const components = {
   Simple: () => import("./simple"),
   SimpleProps: () => import("./simple-props"),
   Slot: () => import("./slot"),
+  TodoCommandCenter: () => import("./todo-command-center"),
+  TodoDeferredDigest: () => import("./todo-digests"),
+  TodoFocusTimer: () => import("./todo-focus-timer"),
+  TodoSsrDigest: () => import("./todo-digests"),
+  TodoWorkspace: () => import("./todo-workspace"),
   Typescript: () => import("./typescript"),
 };
 

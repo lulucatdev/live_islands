@@ -45,6 +45,7 @@ defmodule LiveIslandsExamplesWeb.Router do
     live "/link-usage", LiveLinkUsage
     live "/capabilities", LiveCapabilities
     live "/benchmarks", LiveBenchmarks
+    live "/todo", LiveTodoApp
   end
 
   # Other scopes may use custom stacks.

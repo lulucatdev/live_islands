@@ -22,7 +22,8 @@ LiveIslands is an independent project. It began as an extraction and redesign in
 - Server-only zero-JS proofs for hookless React and Vue SSR islands
 - Route-level asset profiles with CSS-only shells for pages that should skip the app JavaScript entry
 - Vite and NodeJS SSR adapters under the `LiveIslands.SSR` namespace
-- Production benchmark suite for initial route bytes, SSR assertions, asset profile pages, server-only zero-JS proofs, lazy chunks, KaTeX, and PDF.js
+- A complex `/todo` demo app that combines React and Vue islands, server-only SSR, deferred SSR, visible/interaction hydration, intent prefetch, event replies, and LiveView mutations in one product workflow
+- Production benchmark suite for initial route bytes, SSR assertions, asset profile pages, server-only zero-JS proofs, the `/todo` product workflow, lazy chunks, KaTeX, and PDF.js
 
 ## Package Exports
 
@@ -159,7 +160,7 @@ Run the production benchmark suite from the repo root:
 npm run benchmarks
 ```
 
-It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures the React-only/Vue-only/mixed asset profile pages, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
+It builds the example app, starts Phoenix in `MIX_ENV=prod`, opens Chromium, takes multiple samples per page, records the test environment, verifies SSR/server-only/deferred islands, proves `/server-only` does not attach hooks, hydrate islands, prefetch chunks, load React/Vue component chunks, or load the app JavaScript entry, measures the React-only/Vue-only/mixed asset profile pages, records FCP/LCP/hydration/deferred/prefetch timing, checks route-to-route LiveView navigation, proves intent prefetch waits for an explicit signal, drives the `/todo` product workflow, and clicks through a deferred KaTeX + PDF.js workload. Results are written to `benchmarks/results/latest.json` and `benchmarks/results/latest.md`; release tags also publish those files as GitHub Release assets and append the benchmark summary to the release notes.
 
 ## Credits
 
