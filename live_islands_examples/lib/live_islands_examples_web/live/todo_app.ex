@@ -24,6 +24,7 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
     assigns =
       assigns
       |> assign(:lanes, @lanes)
+      |> assign(:priorities, @priorities)
       |> assign(:visible_todos, visible_todos(assigns.todos, assigns.filter, assigns.search))
       |> assign(:metrics, metrics(assigns.todos, assigns.focus_sessions))
 
@@ -104,6 +105,179 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
             />
           </div>
         </div>
+      </section>
+
+      <section class="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8">
+        <div
+          data-testid="todo-liveview-panel"
+          class="todo-card border border-zinc-200 bg-white p-5 shadow-sm"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                LiveView control plane
+              </p>
+              <h2 class="mt-1 text-2xl font-bold text-zinc-950">Server-owned workflow</h2>
+            </div>
+            <div
+              data-testid="todo-url-state"
+              class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm font-medium text-zinc-700"
+            >
+              {url_state_label(@filter, @search, @mode)}
+            </div>
+          </div>
+
+          <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <.form
+              for={%{}}
+              as={:native}
+              phx-change="native-validate"
+              phx-submit="native-create"
+              data-testid="todo-native-form"
+              class="grid gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4"
+            >
+              <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
+                <label class="grid gap-1">
+                  <span class="text-xs font-semibold uppercase text-zinc-500">Task</span>
+                  <input
+                    data-testid="todo-native-title"
+                    name="native[title]"
+                    value={@native_form["title"]}
+                    placeholder="Server validated task"
+                    class={[
+                      "rounded-md border bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100",
+                      if(@native_errors["title"], do: "border-rose-300", else: "border-zinc-200")
+                    ]}
+                  />
+                  <p
+                    :if={@native_errors["title"]}
+                    data-testid="todo-native-title-error"
+                    class="text-xs font-medium text-rose-600"
+                  >
+                    {@native_errors["title"]}
+                  </p>
+                </label>
+                <label class="grid gap-1">
+                  <span class="text-xs font-semibold uppercase text-zinc-500">Owner</span>
+                  <input
+                    name="native[owner]"
+                    value={@native_form["owner"]}
+                    class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  />
+                </label>
+              </div>
+              <div class="grid gap-3 md:grid-cols-4">
+                <select
+                  name="native[priority]"
+                  class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option :for={priority <- @priorities} selected={@native_form["priority"] == priority}>
+                    {priority}
+                  </option>
+                </select>
+                <select
+                  name="native[lane]"
+                  class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option :for={lane <- @lanes} value={lane.id} selected={@native_form["lane"] == lane.id}>
+                    {lane.title}
+                  </option>
+                </select>
+                <input
+                  name="native[points]"
+                  type="number"
+                  min="1"
+                  max="13"
+                  value={@native_form["points"]}
+                  class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
+                />
+                <button
+                  data-testid="todo-native-submit"
+                  type="submit"
+                  class="rounded-md bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+                >
+                  Add
+                </button>
+              </div>
+            </.form>
+
+            <div class="grid content-start gap-3">
+              <div class="grid gap-2 rounded-md border border-zinc-200 bg-white p-3">
+                <div class="flex flex-wrap gap-2">
+                  <.link
+                    :for={filter <- ["all", "open", "today", "review", "done"]}
+                    patch={todo_path(assigns, %{"filter" => filter})}
+                    data-testid={"todo-live-filter-#{filter}"}
+                    class={[
+                      "rounded-md px-3 py-2 text-sm font-medium transition",
+                      if(@filter == filter,
+                        do: "bg-zinc-950 text-white",
+                        else: "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                      )
+                    ]}
+                  >
+                    {labelize(filter)}
+                  </.link>
+                </div>
+                <button
+                  type="button"
+                  data-testid="todo-server-cycle-filter"
+                  phx-click="server-cycle-filter"
+                  class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-white"
+                >
+                  Cycle route filter
+                </button>
+              </div>
+
+              <button
+                type="button"
+                data-testid="todo-js-inspector-toggle"
+                phx-click={JS.toggle(to: "#todo-liveview-inspector")}
+                class="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+              >
+                Toggle inspector
+              </button>
+              <div
+                id="todo-liveview-inspector"
+                data-testid="todo-liveview-inspector"
+                class="hidden rounded-md border border-zinc-200 bg-zinc-950 p-4 text-sm text-white"
+              >
+                <div class="font-semibold">Server revision {@server_revision}</div>
+                <div class="mt-2 text-zinc-300">Events handled {@server_event_count}</div>
+                <div class="mt-2 text-zinc-300">Visible tasks {length(@visible_todos)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="todo-card border border-zinc-200 bg-white p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                Live stream
+              </p>
+              <h3 class="mt-1 text-xl font-bold text-zinc-950">Activity</h3>
+            </div>
+            <span class="rounded-full bg-sky-50 px-3 py-1 text-sm font-semibold text-sky-700">
+              {Enum.count(@streams.activity)}
+            </span>
+          </div>
+          <ol
+            id="todo-live-activity"
+            data-testid="todo-live-activity"
+            phx-update="stream"
+            class="mt-4 grid gap-2"
+          >
+            <li
+              :for={{dom_id, event} <- @streams.activity}
+              id={dom_id}
+              class="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm"
+            >
+              <div class="font-medium text-zinc-800">{event.label}</div>
+              <div class="mt-1 text-xs text-zinc-500">{event.at}</div>
+            </li>
+          </ol>
+        </section>
       </section>
 
       <section class="mx-auto grid max-w-7xl gap-6 px-5 py-8 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8">
@@ -197,11 +371,26 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
       |> assign(:filter, "all")
       |> assign(:search, "")
       |> assign(:mode, "Launch")
+      |> assign(:native_form, native_form())
+      |> assign(:native_errors, %{})
+      |> assign(:server_event_count, 0)
+      |> assign(:server_revision, 1)
       |> assign(:focus_goal, 45)
       |> assign(:focus_sessions, 2)
       |> stream(:activity, seed_activity())
 
     {:ok, socket}
+  end
+
+  def handle_params(params, _uri, socket) do
+    socket =
+      socket
+      |> assign(:filter, valid_filter(params["filter"]))
+      |> assign(:search, clean_search(params["search"]))
+      |> assign(:mode, valid_mode(params["mode"]))
+      |> update(:server_revision, &(&1 + 1))
+
+    {:noreply, socket}
   end
 
   def handle_event("todo-create", %{"title" => title} = params, socket) do
@@ -287,10 +476,13 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
   end
 
   def handle_event("todo-filter", params, socket) do
+    filter = valid_filter(Map.get(params, "filter", socket.assigns.filter))
+    search = clean_search(Map.get(params, "search", socket.assigns.search))
+
     socket =
       socket
-      |> assign(:filter, Map.get(params, "filter", socket.assigns.filter))
-      |> assign(:search, Map.get(params, "search", socket.assigns.search))
+      |> log_activity("Patched route filter to #{filter}", "sky")
+      |> push_patch(to: todo_path(socket, %{"filter" => filter, "search" => search}))
 
     {:noreply, socket}
   end
@@ -307,10 +499,54 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
   end
 
   def handle_event("todo-vue-mode", %{"mode" => mode}, socket) do
+    mode = valid_mode(mode)
+
     socket =
       socket
-      |> assign(:mode, mode)
       |> log_activity("Vue rhythm switched to #{mode}", "emerald")
+      |> push_patch(to: todo_path(socket, %{"mode" => mode}))
+
+    {:noreply, socket}
+  end
+
+  def handle_event("native-validate", %{"native" => params}, socket) do
+    {:noreply, assign(socket, native_form: normalize_native_form(params), native_errors: native_errors(params))}
+  end
+
+  def handle_event("native-create", %{"native" => params}, socket) do
+    errors = native_errors(params)
+
+    if map_size(errors) > 0 do
+      socket =
+        socket
+        |> assign(native_form: normalize_native_form(params), native_errors: errors)
+        |> log_activity("Rejected server form input", "rose")
+
+      {:noreply, socket}
+    else
+      todo =
+        params["title"]
+        |> String.trim()
+        |> new_todo(native_todo_params(params))
+
+      socket =
+        socket
+        |> assign(:native_form, native_form())
+        |> assign(:native_errors, %{})
+        |> update(:todos, &[todo | &1])
+        |> log_activity("LiveView form created #{todo.title}", "emerald")
+
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("server-cycle-filter", _params, socket) do
+    filter = next_filter(socket.assigns.filter)
+
+    socket =
+      socket
+      |> log_activity("Server cycled filter to #{filter}", "violet")
+      |> push_patch(to: todo_path(socket, %{"filter" => filter}))
 
     {:noreply, socket}
   end
@@ -338,8 +574,8 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
     socket =
       socket
       |> assign(:todos, todos)
-      |> assign(:mode, "Plan")
       |> log_activity("Promoted backlog into today's plan", "violet")
+      |> push_patch(to: todo_path(socket, %{"mode" => "Plan"}))
 
     {:noreply, socket}
   end
@@ -358,8 +594,8 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
     socket =
       socket
       |> assign(:todos, todos)
-      |> assign(:mode, "Ship")
       |> log_activity("Shipped review lane", "emerald")
+      |> push_patch(to: todo_path(socket, %{"mode" => "Ship"}))
 
     {:noreply, socket}
   end
@@ -409,6 +645,115 @@ defmodule LiveIslandsExamplesWeb.LiveTodoApp do
   defp pill_border("violet"), do: "border-violet-200"
   defp pill_border("rose"), do: "border-rose-200"
   defp pill_border(_tone), do: "border-sky-200"
+
+  defp native_form do
+    %{
+      "title" => "",
+      "owner" => "Mira",
+      "priority" => "P2",
+      "lane" => "today",
+      "points" => "3"
+    }
+  end
+
+  defp normalize_native_form(params) do
+    Map.merge(native_form(), Map.take(params, ["title", "owner", "priority", "lane", "points"]))
+  end
+
+  defp native_errors(params) do
+    params = normalize_native_form(params)
+
+    %{}
+    |> maybe_error(
+      "title",
+      String.length(String.trim(params["title"])) < 4,
+      "Use at least 4 characters"
+    )
+    |> maybe_error("owner", String.trim(params["owner"]) == "", "Choose an owner")
+  end
+
+  defp maybe_error(errors, key, true, message), do: Map.put(errors, key, message)
+  defp maybe_error(errors, _key, false, _message), do: errors
+
+  defp native_todo_params(params) do
+    params
+    |> normalize_native_form()
+    |> Map.merge(%{
+      "body" => "Created by a native LiveView form with server validation.",
+      "due" => "17:30",
+      "tags" => "liveview,native"
+    })
+  end
+
+  defp todo_path(%{assigns: assigns}, updates), do: todo_path(assigns, updates)
+
+  defp todo_path(assigns, updates) do
+    query =
+      %{
+        "filter" => Map.get(assigns, :filter, "all"),
+        "search" => Map.get(assigns, :search, ""),
+        "mode" => Map.get(assigns, :mode, "Launch")
+      }
+      |> Map.merge(updates)
+      |> Enum.reject(fn
+        {"filter", "all"} -> true
+        {"search", ""} -> true
+        {"mode", "Launch"} -> true
+        {_key, nil} -> true
+        {_key, ""} -> true
+        _entry -> false
+      end)
+      |> Map.new()
+
+    if map_size(query) == 0 do
+      ~p"/todo"
+    else
+      ~p"/todo?#{query}"
+    end
+  end
+
+  defp url_state_label(filter, search, mode) do
+    search_label = if search == "", do: "no search", else: "search: #{search}"
+    "#{labelize(filter)} / #{mode} / #{search_label}"
+  end
+
+  defp labelize(value) do
+    value
+    |> to_string()
+    |> String.replace("-", " ")
+    |> String.split(" ", trim: true)
+    |> Enum.map_join(" ", &String.capitalize/1)
+  end
+
+  defp valid_filter(filter) do
+    filter = to_string(filter || "all")
+    filters = ["all", "open"] ++ Enum.map(@lanes, & &1.id)
+
+    if filter in filters, do: filter, else: "all"
+  end
+
+  defp valid_mode(mode) do
+    mode = to_string(mode || "Launch")
+
+    if mode in ["Launch", "Plan", "Deep Work", "Ship"] do
+      mode
+    else
+      "Launch"
+    end
+  end
+
+  defp clean_search(search) do
+    search
+    |> to_string()
+    |> String.trim()
+    |> String.slice(0, 48)
+  end
+
+  defp next_filter("all"), do: "open"
+  defp next_filter("open"), do: "today"
+  defp next_filter("today"), do: "review"
+  defp next_filter("review"), do: "done"
+  defp next_filter(_filter), do: "all"
 
   defp seed_todos do
     [

@@ -83,11 +83,13 @@ Astro's product-page insistence on measuring what users actually load.
 - Runtime: `/todo` uses React and Vue islands together with server-only SSR,
   deferred server islands, `client={:load | :visible | :interaction}`,
   `prefetch={:load | :idle | :intent}`, event replies, LiveView event pushes,
-  and page-scoped manifests
+  native LiveView forms, URL patching, JS commands, server streams, and
+  page-scoped manifests
 - Tests: browser e2e covers task creation, event-reply planning, Vue mode
-  switching, command-center interaction hydration, focus timer hydration,
+  switching, native LiveView validation/submission, URL patch state, stream
+  updates, command-center interaction hydration, focus timer hydration,
   server-only hook absence, and manifest assertions
 - Benchmarks: schema `version: 9` records Todo initial total bytes, initial
-  JavaScript bytes, hydrated island counts, deferred SSR fetch bytes, workflow
-  interaction bytes, interaction duration, SSR proof rows, budgets, and
-  release-to-release comparison metrics
+  JavaScript bytes, hydrated island counts, deferred SSR fetch bytes, native
+  LiveView control proof, workflow interaction bytes, interaction duration, SSR
+  proof rows, budgets, and release-to-release comparison metrics

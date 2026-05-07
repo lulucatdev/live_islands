@@ -5,6 +5,14 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## v0.11.1
+
+LiveView-native capability mimicry in the Todo demo.
+
+- Added a LiveView control plane to `/todo` with native `phx-change` validation, `phx-submit` creation, URL-driven `push_patch` filters, a `Phoenix.LiveView.JS` inspector toggle, and a server-rendered activity stream.
+- Kept the React workspace and Vue rhythm panel synchronized from the same server-owned URL and task state, so island interactions visibly round-trip through LiveView rather than acting like isolated frontend widgets.
+- Extended Todo e2e and benchmark schema `version: 9` assertions to prove the LiveView control plane, native form, native stream, stream updates, URL state, SSR islands, deferred island, and island event replies all work in one product flow.
+
 ## v0.11.0
 
 Complex Todo demo app with product-workflow benchmarks.

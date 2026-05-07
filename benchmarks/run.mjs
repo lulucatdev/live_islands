@@ -596,9 +596,22 @@ async function collectPage(browser, pathname, options = {}) {
     const initialInteractionCount = responsePromises.length;
     const startedAt = Date.now();
 
+    await page.getByTestId("todo-native-title").fill("No");
+    await page.getByTestId("todo-native-title-error").waitFor();
+    await page.getByTestId("todo-native-title").fill("Benchmark LiveView task");
+    await page.getByTestId("todo-native-submit").click();
+    await page
+      .getByRole("heading", { name: "Benchmark LiveView task" })
+      .waitFor();
+    await page.getByTestId("todo-live-filter-review").click();
+    await page.waitForURL(/filter=review/);
+    await page.getByTestId("todo-js-inspector-toggle").click();
+    await page.getByTestId("todo-liveview-inspector").waitFor();
+    await page.getByTestId("todo-live-filter-all").click();
+    await page.waitForURL((url) => !url.searchParams.has("filter"));
     await page.getByTestId("todo-title-input").fill("Benchmark todo task");
     await page.getByTestId("todo-add-button").click();
-    await page.getByText("Benchmark todo task").waitFor();
+    await page.getByRole("heading", { name: "Benchmark todo task" }).waitFor();
     await page.getByTestId("todo-plan-button").click();
     await page.getByTestId("todo-plan-headline").waitFor();
     await page
@@ -608,6 +621,14 @@ async function collectPage(browser, pathname, options = {}) {
     await page.getByText("Plan mode").waitFor();
     await page.getByTestId("todo-command-toggle").click();
     await page.getByTestId("todo-command-ship-review").click();
+    await page.getByTestId("todo-url-state").waitFor({
+      state: "visible",
+    });
+    await page.waitForFunction(() =>
+      document
+        .querySelector("[data-testid='todo-url-state']")
+        ?.textContent?.includes("Ship"),
+    );
     await page.waitForLoadState("networkidle");
 
     const allResponses = (await Promise.all(responsePromises)).filter(Boolean);
@@ -617,6 +638,8 @@ async function collectPage(browser, pathname, options = {}) {
       durationMs: Date.now() - startedAt,
       network: summarizeResponses(added),
       planHeadline: await page.getByTestId("todo-plan-headline").textContent(),
+      urlState: await page.getByTestId("todo-url-state").textContent(),
+      liveActivity: await page.getByTestId("todo-live-activity").textContent(),
     };
   }
 
@@ -709,6 +732,9 @@ async function collectPage(browser, pathname, options = {}) {
           "Server-rendered Vue proof with no client hydration",
         ),
         containsDeferredFallback: html.includes("todo-deferred-fallback"),
+        containsLiveViewPanel: html.includes("todo-liveview-panel"),
+        containsNativeForm: html.includes("todo-native-form"),
+        containsNativeStream: html.includes("todo-live-activity"),
         staticDigestHasHook: /id="todo_static_digest"[^>]*phx-hook/.test(html),
         staticRhythmHasHook: /id="todo_static_rhythm"[^>]*phx-hook/.test(html),
       }
@@ -1300,6 +1326,15 @@ function assertBenchmarks(result) {
   if (!todoPage.todoProof?.containsDeferredFallback) {
     failures.push("todo app is missing the deferred server island fallback");
   }
+  if (!todoPage.todoProof?.containsLiveViewPanel) {
+    failures.push("todo app is missing the LiveView control plane");
+  }
+  if (!todoPage.todoProof?.containsNativeForm) {
+    failures.push("todo app is missing the native LiveView form");
+  }
+  if (!todoPage.todoProof?.containsNativeStream) {
+    failures.push("todo app is missing the native LiveView stream");
+  }
   if (todoPage.todoProof?.staticDigestHasHook) {
     failures.push("todo app React server-only digest unexpectedly has a hook");
   }
@@ -1325,6 +1360,16 @@ function assertBenchmarks(result) {
     failures.push(
       "todo app event-reply planner did not return a focus headline",
     );
+  }
+  if (
+    !todoPage.todoInteraction?.liveActivity?.includes(
+      "LiveView form created Benchmark LiveView task",
+    )
+  ) {
+    failures.push("todo app native LiveView form did not update the stream");
+  }
+  if (!todoPage.todoInteraction?.urlState?.includes("Ship")) {
+    failures.push("todo app LiveView URL state did not survive island actions");
   }
   if (todoPage.deferred.loadedCount < 1) {
     failures.push("todo app deferred server island did not load");
@@ -2052,12 +2097,16 @@ function markdown(result) {
     `- React server-only digest in initial HTML: ${result.pages.todoApp.todoProof.containsSsrDigest}`,
     `- Vue server-only proof in initial HTML: ${result.pages.todoApp.todoProof.containsVueServerProof}`,
     `- Deferred fallback in initial HTML: ${result.pages.todoApp.todoProof.containsDeferredFallback}`,
+    `- LiveView control plane in initial HTML: ${result.pages.todoApp.todoProof.containsLiveViewPanel}`,
+    `- Native LiveView form in initial HTML: ${result.pages.todoApp.todoProof.containsNativeForm}`,
+    `- Native LiveView stream in initial HTML: ${result.pages.todoApp.todoProof.containsNativeStream}`,
     `- React server-only digest has no hook: ${!result.pages.todoApp.todoProof.staticDigestHasHook}`,
     `- Vue server-only proof has no hook: ${!result.pages.todoApp.todoProof.staticRhythmHasHook}`,
     `- Deferred server island loaded: ${result.pages.todoApp.deferred.loadedCount}`,
     `- Interaction bytes: ${formatBytes(result.pages.todoApp.todoInteraction.network.totalBytes)}`,
     `- Interaction duration: ${result.pages.todoApp.todoInteraction.durationMs} ms`,
     `- Event-reply headline: ${result.pages.todoApp.todoInteraction.planHeadline}`,
+    `- URL state after island actions: ${result.pages.todoApp.todoInteraction.urlState}`,
     "",
     "## Sample Stability",
     "",

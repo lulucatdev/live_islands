@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEventReply } from "live_islands/react";
 
@@ -46,6 +46,10 @@ export function TodoWorkspace({
       steps: ["The reply will come from LiveView without a page reload."],
     },
   });
+
+  useEffect(() => {
+    setLocalSearch(search || "");
+  }, [search]);
 
   const normalizedActivity = useMemo(
     () => normalizeStream(activity).slice(0, 8),

@@ -11,7 +11,7 @@ benchmark routes in Chromium, and records:
 - JavaScript and CSS bytes by page
 - React-only, Vue-only, and mixed asset profile page bytes
 - `/todo` product workflow initial bytes, interaction bytes, interaction timing,
-  SSR/deferred proof, and manifest coverage
+  native LiveView control proof, SSR/deferred proof, and manifest coverage
 - app entry bytes and Vite artifact gzip bytes
 - FCP, LCP, hydrated island count, last-hydrated time, deferred island time, and prefetch event counts
 - intent prefetch bytes, timing, modulepreload links, and proof that target chunks wait for explicit intent
@@ -24,8 +24,9 @@ benchmark routes in Chromium, and records:
 - route-to-route LiveView navigation from `/capabilities` to `/benchmarks`
 - an intent prefetch flow on `/capabilities`
 - deferred KaTeX and PDF.js bytes loaded after user intent
-- Todo workflow bytes for task creation, event-reply planning, Vue mode
-  switching, interaction-hydrated command center loading, and deferred SSR
+- Todo workflow bytes for native LiveView validation/submission, URL patching,
+  stream updates, task creation, event-reply planning, Vue mode switching,
+  interaction-hydrated command center loading, and deferred SSR
 - the OS, runtime, browser, CI, and package environment used for the run
 - browser console/page errors that would make the benchmark misleading
 
@@ -59,7 +60,7 @@ shell JavaScript, zero-JS violations, deferred island bytes, intent prefetch byt
 regressions. This catches duplicate entrypoint loads, real bundle growth, slower
 hydration, slower deferred SSR fetches, premature intent loads, and accidental
 loss of lazy framework loading, hookless server-only rendering, page-scoped
-profile manifests, Todo workflow SSR/deferred behavior, or CSS-only shell behavior.
+profile manifests, Todo workflow LiveView/SSR/deferred behavior, or CSS-only shell behavior.
 
 The GitHub Actions benchmark workflow runs on `v*` tags and can also be started
 manually. It uploads the JSON and Markdown result files as workflow artifacts.
