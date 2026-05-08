@@ -12,9 +12,11 @@ Developer workflow and HexDocs structure.
 - Rebuilt the default example site as a full LiveView showcase with first-class
   React and Vue islands, SSR, server-only, deferred, lazy, native LiveView, and
   benchmark route entrypoints.
-- Raised the home-page benchmark budget to cover the intentional mixed React/Vue
-  runtime showcase while keeping server-only, profile, todo, and heavy-workflow
-  budgets strict.
+- Reorganized the default site into a feature map plus dedicated capability
+  pages for React/Vue parity, server-only SSR, lazy/deferred islands, LiveView
+  event control, and benchmarks.
+- Retuned the home-page benchmark budget for the lightweight feature map while
+  keeping server-only, profile, todo, and heavy-workflow budgets strict.
 - Added a root `Makefile` for setup, demo, compile, test, e2e, benchmark, docs, and Hex package build workflows.
 - Expanded ExDoc configuration with grouped guides, grouped API modules, logo/favicon assets, canonical HexDocs URL, benchmark docs, and install-skill references.
 - Added a documentation maintenance guide and tightened development/benchmark docs around the new `make` entrypoints.

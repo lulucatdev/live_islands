@@ -25,6 +25,7 @@ defmodule LiveIslandsExamplesWeb.Router do
     pipe_through :browser
 
     live "/", LiveShowcase
+    live "/features/:feature", LiveShowcase
     get "/lazy", PageController, :lazy
     get "/simple", PageController, :simple
     get "/simple-props", PageController, :simple_props

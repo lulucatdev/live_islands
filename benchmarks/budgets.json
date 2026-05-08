@@ -1,7 +1,7 @@
 {
   "home": {
-    "maxTotalBytes": 540000,
-    "maxUniqueBytes": 540000,
+    "maxTotalBytes": 260000,
+    "maxUniqueBytes": 260000,
     "maxLargestContentfulPaintMs": 2500,
     "maxLastHydratedMs": 2500
   },

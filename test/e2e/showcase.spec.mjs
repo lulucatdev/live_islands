@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+const featureIds = [
+  "react-vue",
+  "ssr-static",
+  "lazy-deferred",
+  "liveview-events",
+  "benchmarks",
+];
+
 async function installIslandProbe(page) {
   await page.addInitScript(() => {
     const state = {
@@ -18,9 +26,9 @@ async function installIslandProbe(page) {
         name: event.detail?.name || el?.getAttribute?.("data-name"),
         client: el?.getAttribute?.("data-client") || null,
         prefetch: el?.getAttribute?.("data-prefetch") || null,
-        ssr: el?.getAttribute?.("data-ssr") === "true",
-        serverOnly: el?.getAttribute?.("data-server-only") === "true",
-        deferred: el?.getAttribute?.("data-deferred") === "true",
+        ssr: el?.hasAttribute?.("data-ssr") || false,
+        serverOnly: el?.hasAttribute?.("data-server-only") || false,
+        deferred: el?.hasAttribute?.("data-deferred") || false,
       });
     };
 
@@ -36,14 +44,14 @@ async function installIslandProbe(page) {
   });
 }
 
-async function islandManifest(page) {
-  return page.evaluate(() => window.__liveIslandsPrefetch?.manifest?.() || []);
-}
-
-async function initialHtml(page) {
-  const response = await page.request.get("/");
+async function initialHtml(page, path) {
+  const response = await page.request.get(path);
   expect(response.ok()).toBe(true);
   return response.text();
+}
+
+async function islandManifest(page) {
+  return page.evaluate(() => window.__liveIslandsPrefetch?.manifest?.() || []);
 }
 
 async function islandEvents(page, type) {
@@ -68,163 +76,218 @@ async function expectIslandEvent(page, type, expected) {
   await expect.poll(() => hasIslandEvent(page, type, expected)).toBe(true);
 }
 
-test("default showcase balances React, Vue, SSR, deferred, and LiveView", async ({
+test("showcase home is a feature map, not a mixed demo page", async ({
+  page,
+}) => {
+  await page.goto("/", { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("showcase-home")).toBeVisible();
+  await expect(page.getByTestId("feature-map")).toBeVisible();
+
+  for (const featureId of featureIds) {
+    await expect(page.getByTestId(`feature-card-${featureId}`)).toHaveAttribute(
+      "href",
+      `/features/${featureId}`,
+    );
+  }
+
+  await expect(page.locator("[data-framework][data-name]")).toHaveCount(0);
+});
+
+test("react-vue feature page isolates framework parity", async ({ page }) => {
+  await installIslandProbe(page);
+  const html = await initialHtml(page, "/features/react-vue");
+
+  expect(html).toMatch(/id="feature_react_command"[^>]*data-ssr(?:\s|>)/);
+  expect(html).toMatch(/id="feature_vue_board"[^>]*data-ssr(?:\s|>)/);
+  expect(html).toContain("Command deck");
+  expect(html).toContain("Active signal: edge");
+
+  await page.goto("/features/react-vue", { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("feature-page-react-vue")).toBeVisible();
+  await expect(page.getByTestId("feature-block-react-vue")).toBeVisible();
+  await expect(page.getByTestId("showcase-react-command")).toBeVisible();
+  await expect(page.getByTestId("showcase-vue-board")).toBeVisible();
+
+  expect(await islandManifest(page)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        page: "/features/react-vue",
+        framework: "react",
+        name: "ShowcaseCommand",
+        client: "load",
+        prefetch: "load",
+        serverOnly: false,
+        deferred: false,
+      }),
+      expect.objectContaining({
+        page: "/features/react-vue",
+        framework: "vue",
+        name: "showcase-vue-board",
+        client: "load",
+        prefetch: "none",
+        serverOnly: false,
+        deferred: false,
+      }),
+    ]),
+  );
+
+  await expectIslandEvent(page, "hydrated", {
+    framework: "react",
+    name: "ShowcaseCommand",
+    client: "load",
+  });
+  await expectIslandEvent(page, "hydrated", {
+    framework: "vue",
+    name: "showcase-vue-board",
+    client: "load",
+  });
+
+  await page.getByTestId("showcase-vue-signal-ssr").click();
+  await expect(page.getByTestId("showcase-active-signal")).toContainText(
+    "SSR lane",
+  );
+  await expect(page.getByTestId("showcase-vue-active")).toContainText("ssr");
+
+  await page.getByTestId("showcase-react-signal-react").click();
+  await page.getByTestId("showcase-react-run").click();
+  await expect(page.getByTestId("showcase-react-reply")).toContainText(
+    "React reply",
+  );
+  await expect(page.locator("#showcase-events")).toContainText(
+    "React command inspected",
+  );
+});
+
+test("ssr-static feature page proves server-only islands stay static", async ({
+  page,
+}) => {
+  await page.goto("/features/ssr-static", { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("feature-page-ssr-static")).toBeVisible();
+  await expect(page.getByTestId("showcase-react-server-proof")).toBeVisible();
+  await expect(page.getByTestId("showcase-vue-server-proof")).toBeVisible();
+
+  await expect(page.locator("#feature_react_server")).not.toHaveAttribute(
+    "phx-hook",
+    /.+/,
+  );
+  await expect(page.locator("#feature_vue_server")).not.toHaveAttribute(
+    "phx-hook",
+    /.+/,
+  );
+  await expect(
+    page.locator("[data-framework][data-name][phx-hook]"),
+  ).toHaveCount(0);
+
+  expect(await islandManifest(page)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        page: "/features/ssr-static",
+        framework: "react",
+        name: "ShowcaseProof",
+        client: "none",
+        prefetch: "none",
+        serverOnly: true,
+      }),
+      expect.objectContaining({
+        page: "/features/ssr-static",
+        framework: "vue",
+        name: "showcase-vue-proof",
+        client: "none",
+        prefetch: "none",
+        serverOnly: true,
+      }),
+    ]),
+  );
+});
+
+test("lazy-deferred feature page separates deferred HTML from visible hydration", async ({
   page,
 }) => {
   await installIslandProbe(page);
+  const html = await initialHtml(page, "/features/lazy-deferred");
 
-  const html = await initialHtml(page);
-  await page.goto("/", { waitUntil: "networkidle" });
+  expect(html).toContain("showcase-react-deferred-fallback");
+  expect(html).toContain("showcase-vue-deferred-fallback");
+  expect(html).toMatch(/id="feature_lazy_vue_board"[^>]*data-client="visible"/);
+  expect(html).toMatch(/id="feature_lazy_vue_board"[^>]*data-prefetch="none"/);
 
-  await test.step("renders the LiveView shell with SSR React and Vue content", async () => {
-    expect(html).toMatch(/id="showcase_react_command"[^>]*data-ssr(?:\s|>)/);
-    expect(html).toMatch(/id="showcase_vue_board"[^>]*data-ssr(?:\s|>)/);
-    expect(html).toContain("Command deck");
-    expect(html).toContain("Active signal: edge");
+  await page.goto("/features/lazy-deferred", { waitUntil: "networkidle" });
 
-    await expect(page.getByTestId("showcase-page")).toBeVisible();
-    await expect(page.getByTestId("showcase-react-command")).toBeVisible();
-    await expect(page.getByTestId("showcase-vue-board")).toBeVisible();
-    await expect(page.getByTestId("showcase-react-reply")).toContainText(
-      "React reply waiting",
-    );
-    await expect(page.getByTestId("showcase-vue-active")).toContainText("edge");
+  await expect(page.getByTestId("feature-page-lazy-deferred")).toBeVisible();
+  await expect(page.getByTestId("showcase-react-deferred-proof")).toBeVisible();
+  await expect(page.getByTestId("showcase-vue-deferred-proof")).toBeVisible();
+
+  await expectIslandEvent(page, "deferredLoaded", {
+    framework: "react",
+    name: "ShowcaseProof",
+  });
+  await expectIslandEvent(page, "deferredLoaded", {
+    framework: "vue",
+    name: "showcase-vue-proof",
   });
 
-  await test.step("declares the page-level island contract explicitly", async () => {
-    expect(await islandManifest(page)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          page: "/",
-          framework: "react",
-          name: "ShowcaseCommand",
-          client: "load",
-          prefetch: "load",
-          serverOnly: false,
-          deferred: false,
-        }),
-        expect.objectContaining({
-          page: "/",
-          framework: "vue",
-          name: "showcase-vue-board",
-          client: "visible",
-          prefetch: "none",
-          serverOnly: false,
-          deferred: false,
-        }),
-        expect.objectContaining({
-          page: "/",
-          framework: "react",
-          name: "ShowcaseProof",
-          serverOnly: true,
-        }),
-        expect.objectContaining({
-          page: "/",
-          framework: "vue",
-          name: "showcase-vue-proof",
-          serverOnly: true,
-        }),
-      ]),
-    );
-
-    await expect(page.locator("#showcase_react_command")).toHaveAttribute(
-      "data-client",
-      "load",
-    );
-    await expect(page.locator("#showcase_vue_board")).toHaveAttribute(
-      "data-client",
-      "visible",
-    );
-    await expect(page.locator("#showcase_vue_board")).toHaveAttribute(
-      "data-prefetch",
-      "none",
-    );
-  });
-
-  await test.step("keeps server-only and deferred proof islands static", async () => {
-    for (const id of [
-      "#showcase_react_server",
-      "#showcase_vue_server",
-      "#showcase_react_deferred",
-      "#showcase_vue_deferred",
-    ]) {
-      await expect(page.locator(id)).not.toHaveAttribute("phx-hook", /.+/);
-    }
-
-    await expect(page.getByTestId("showcase-react-server-proof")).toBeVisible();
-    await expect(page.getByTestId("showcase-vue-server-proof")).toBeVisible();
-    await expect(
-      page.getByTestId("showcase-react-deferred-proof"),
-    ).toBeVisible();
-    await expect(page.getByTestId("showcase-vue-deferred-proof")).toBeVisible();
-    await expectIslandEvent(page, "deferredLoaded", {
-      framework: "react",
-      name: "ShowcaseProof",
-    });
-    await expectIslandEvent(page, "deferredLoaded", {
-      framework: "vue",
-      name: "showcase-vue-proof",
-    });
-  });
-
-  await test.step("hydrates React on load but keeps Vue lazy until visible", async () => {
-    await expectIslandEvent(page, "hydrated", {
-      framework: "react",
-      name: "ShowcaseCommand",
-      client: "load",
-      prefetch: "load",
-    });
-    expect(
-      await hasIslandEvent(page, "hydrated", {
-        framework: "vue",
-        name: "showcase-vue-board",
-      }),
-    ).toBe(false);
-
-    await page.getByTestId("showcase-vue-board").scrollIntoViewIfNeeded();
-    await expectIslandEvent(page, "hydrated", {
+  expect(
+    await hasIslandEvent(page, "hydrated", {
       framework: "vue",
       name: "showcase-vue-board",
-      client: "visible",
-      prefetch: "none",
-    });
+    }),
+  ).toBe(false);
 
-    const vueEvents = (await islandEvents(page, "hydrated")).filter(
-      (event) =>
-        event.framework === "vue" && event.name === "showcase-vue-board",
-    );
-    expect(vueEvents).toHaveLength(1);
+  await page.getByTestId("showcase-vue-board").scrollIntoViewIfNeeded();
+  await expectIslandEvent(page, "hydrated", {
+    framework: "vue",
+    name: "showcase-vue-board",
+    client: "visible",
+    prefetch: "none",
   });
 
-  await test.step("round-trips Vue and React island events through LiveView", async () => {
-    await page.getByTestId("showcase-vue-signal-ssr").click();
-    await expect(page.getByTestId("showcase-active-signal")).toContainText(
-      "SSR lane",
-    );
-    await expect(page.getByTestId("showcase-vue-active")).toContainText("ssr");
+  const vueEvents = (await islandEvents(page, "hydrated")).filter(
+    (event) => event.framework === "vue" && event.name === "showcase-vue-board",
+  );
+  expect(vueEvents).toHaveLength(1);
+});
 
-    await page.getByTestId("showcase-react-signal-react").click();
-    await page.getByTestId("showcase-react-run").click();
-    await expect(page.getByTestId("showcase-react-reply")).toContainText(
-      "React reply",
-    );
-    await expect(page.locator("#showcase-events")).toContainText(
-      "React command inspected",
-    );
-  });
+test("liveview-events feature page keeps server controls explicit", async ({
+  page,
+}) => {
+  await page.goto("/features/liveview-events", { waitUntil: "networkidle" });
 
-  await test.step("keeps native LiveView controls working beside islands", async () => {
-    await page.getByTestId("showcase-native-name").fill("No");
-    await expect(page.getByTestId("showcase-native-error")).toContainText(
-      "use at least 4 characters",
-    );
-    await page.getByTestId("showcase-native-name").fill("Vue parity proof");
-    await page.getByTestId("showcase-native-submit").click();
-    await expect(page.locator("#showcase-events")).toContainText(
-      "Native LiveView form captured Vue parity proof",
-    );
+  await expect(page.getByTestId("feature-page-liveview-events")).toBeVisible();
+  await expect(page.getByTestId("showcase-native-form")).toBeVisible();
+  await expect(page.getByTestId("showcase-react-command")).toBeVisible();
 
-    await page.getByTestId("showcase-js-toggle").click();
-    await expect(page.locator("#showcase-js-panel")).toBeVisible();
-  });
+  await page.getByTestId("showcase-native-name").fill("No");
+  await expect(page.getByTestId("showcase-native-error")).toContainText(
+    "use at least 4 characters",
+  );
+  await page.getByTestId("showcase-native-name").fill("Vue parity proof");
+  await page.getByTestId("showcase-native-submit").click();
+  await expect(page.locator("#showcase-events")).toContainText(
+    "Native LiveView form captured Vue parity proof",
+  );
+
+  await page.getByTestId("showcase-js-toggle").click();
+  await expect(page.locator("#showcase-js-panel")).toBeVisible();
+
+  await page.getByTestId("showcase-react-run").click();
+  await expect(page.getByTestId("showcase-react-reply")).toContainText(
+    "React reply",
+  );
+});
+
+test("benchmarks feature page points heavy work to the dedicated lab", async ({
+  page,
+}) => {
+  await page.goto("/features/benchmarks", { waitUntil: "networkidle" });
+
+  await expect(page.getByTestId("feature-page-benchmarks")).toBeVisible();
+  await expect(page.getByTestId("feature-block-benchmarks")).toBeVisible();
+  await expect(page.getByTestId("feature-open-benchmarks")).toHaveAttribute(
+    "href",
+    "/benchmarks",
+  );
+  await expect(page.locator("[data-framework][data-name]")).toHaveCount(0);
 });
