@@ -17,6 +17,10 @@ Developer workflow and HexDocs structure.
   event control, and benchmarks.
 - Retuned the home-page benchmark budget for the lightweight feature map while
   keeping server-only, profile, todo, and heavy-workflow budgets strict.
+- Added an online browser benchmark probe to `/benchmarks`, so the page can
+  measure its current Performance API entries, runtime island events, deferred
+  SSR completion, visible Vue hydration, and PDF.js + KaTeX interaction without
+  exposing a server-side command runner.
 - Added a root `Makefile` for setup, demo, compile, test, e2e, benchmark, docs, and Hex package build workflows.
 - Expanded ExDoc configuration with grouped guides, grouped API modules, logo/favicon assets, canonical HexDocs URL, benchmark docs, and install-skill references.
 - Added a documentation maintenance guide and tightened development/benchmark docs around the new `make` entrypoints.

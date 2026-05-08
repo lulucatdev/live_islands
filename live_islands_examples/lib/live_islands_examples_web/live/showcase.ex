@@ -68,11 +68,11 @@ defmodule LiveIslandsExamplesWeb.LiveShowcase do
       number: "05",
       title: "Benchmark lab",
       short: "The performance case stays separate from the product demos.",
-      body: "This page points to the dedicated benchmark route and explains the automated checks that guard every release.",
-      tags: ["budgets", "artifacts", "release checks"],
+      body: "This page points to the dedicated benchmark route, including the online browser probe for quick checks and the automated suite that guards every release.",
+      tags: ["budgets", "online probe", "release checks"],
       proof: [
         "Home route has its own lightweight budget",
-        "Heavy PDF and KaTeX work stays behind explicit intent",
+        "The browser can start a page-local measurement",
         "Release comparisons are generated from benchmark artifacts"
       ]
     }
@@ -541,8 +541,8 @@ defmodule LiveIslandsExamplesWeb.LiveShowcase do
           <p class="mt-4 max-w-3xl text-sm leading-6 text-zinc-600">
             The benchmark route is intentionally separate from the marketing or
             capability pages. It exercises PDF.js, KaTeX, deferred server islands,
-            route navigation, intent prefetch, and release artifacts without hiding
-            the cost inside the default page.
+            route navigation, intent prefetch, online browser measurement, and
+            release artifacts without hiding the cost inside the default page.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
             <.link href={~p"/benchmarks"} data-testid="feature-open-benchmarks" class="rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800">

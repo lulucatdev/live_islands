@@ -35,3 +35,33 @@ test("deferred server islands load static HTML without hooks", async ({
     prefetch: "none",
   });
 });
+
+test("benchmark page can run an online browser measurement", async ({
+  page,
+}) => {
+  await page.goto("/benchmarks");
+
+  await expect(page.getByTestId("benchmark-online-runner")).toBeVisible();
+  await page.getByTestId("benchmark-run-online").click();
+
+  await expect(page.getByTestId("benchmark-online-status")).toContainText(
+    "Measurement complete",
+    { timeout: 20_000 },
+  );
+  await expect(page.getByTestId("benchmark-online-result")).toBeVisible();
+  await expect(page.getByTestId("benchmark-online-initial-total")).toContainText(
+    /B|KiB|MiB/,
+  );
+  await expect(page.getByTestId("benchmark-online-initial-js")).toContainText(
+    /B|KiB|MiB/,
+  );
+  await expect(page.getByTestId("benchmark-online-heavy-duration")).toContainText(
+    /ms/,
+  );
+  await expect(page.getByTestId("benchmark-online-checks")).toContainText(
+    "Initial route bytes",
+  );
+  await expect(page.getByTestId("benchmark-heavy-report")).toContainText(
+    "Rendered",
+  );
+});

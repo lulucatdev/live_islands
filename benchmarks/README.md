@@ -51,6 +51,13 @@ node benchmarks/run.mjs --budget=benchmarks/budgets.json
 Use `npm run benchmarks:smoke` for a one-sample production smoke test while
 developing the benchmark runner itself.
 
+The example app also includes an online browser probe on `/benchmarks`. Click
+`Start measurement` to measure the current browser session without executing any
+server-side shell command. It records the page's Performance API network entries,
+island runtime events, deferred server-island completion, visible Vue hydration,
+and the PDF.js + KaTeX heavy interaction. Treat this as an interactive diagnostic
+for the open page; the production release gate remains `make benchmark`.
+
 The runner writes `benchmarks/results/latest.json` and a matching Markdown
 summary. Result files are ignored by git because byte counts vary by machine,
 Node version, and Phoenix production settings.
